@@ -188,6 +188,11 @@ def smooth_wavelet_denoise(data: np.ndarray,
     denoised_coeffs = pywt.threshold(coeffs, threshold, mode=mode)
     return pywt.waverecn(denoised_coeffs, wavelet=wavelet)
 
+# TODO: probably to be deprecated 
+# because a conversion from a numpy array to a torch tensor is handled by the data_loader
+# if the data augmentation is performed (it is performed on training data),
+# then a numpy array is converted to a torch tensor during data augmentation step 
+# otherwise it is converted by __getitem__ of the MRIDataset class
 def to_tensor(data: np.ndarray) -> torch.Tensor:
     """
     Convert numpy array to PyTorch tensor
