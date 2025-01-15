@@ -3,7 +3,7 @@ import glob
 import torch
 import pandas as pd
 from torch.utils.data import Dataset
-from src.preprocess import load_nii, preprocess_image # TODO: deprecate?, to_tensor
+from src.preprocess import load_nii, preprocess_image
 
 class MRIDataset(Dataset):
     def __init__(self, data_path, transform=None):
@@ -35,11 +35,11 @@ class MRIDataset(Dataset):
             dataset_path = os.path.join(self.data_path, dataset_full_name, dataset_name)
             csv_path = os.path.join(dataset_path, "participants.csv")
 
-            # Load participant mapping from CSV
+        # Load participant mapping from CSV
         participants_df = pd.read_csv(csv_path)
         participants_df.set_index(participants_df["participant_id"].str.replace("sub-", "", regex=False), inplace=True)
 
-        # Find all .nii.gz files in the anat subfolders
+        # Find all .nii.gz files in the anat subfolder
         anat_files = glob.glob(os.path.join(dataset_path, "sub-*", "ses-*", "anat", "*.nii.gz"))
 
         for file_path in anat_files:
@@ -51,13 +51,13 @@ class MRIDataset(Dataset):
                 label = participants_df.loc[subject_id, "dx_encoded"]
                 file_paths.append(file_path)
                 labels.append(label)
-            else:
+            else: # TODO: collect subjects with wrong labels or mismatches?
                 print(f"Warning: No label found for {subject_id} in {csv_path}")
 
         return file_paths, labels    
 
     def __len__(self):
-        return len(self.data_path)
+        return len(self.file_paths)
 
     def __getitem__(self, idx):
         """
@@ -81,6 +81,6 @@ class MRIDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         else:
-            image = torch.from_numpy(image).float()  # Fallback to tensor conversion if no transform
+            image = torch.from_numpy(image).float()  # Convert back to tensor conversion if no transform
     
         return image, label
