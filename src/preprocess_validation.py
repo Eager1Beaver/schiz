@@ -1,7 +1,10 @@
 import numpy as np
+import nibabel as nib
+from typing import Union
 import matplotlib.pyplot as plt
+from src.preprocess import get_data
 
-def plot_slices(data: np.ndarray,
+def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Image support, redo docs 
                 how_many: int = 4,
                 title: str = "") -> None:
     """
@@ -15,8 +18,8 @@ def plot_slices(data: np.ndarray,
     Raises: ValueError: If the data is not 3D or `how_many` is invalid. 
     TypeError: If the input data is not a numpy array.
     """
-    if not isinstance(data, np.ndarray): # Ensure data is a numpy array
-        raise TypeError(f"Input data must be a numpy array, got {type(data)}")
+    if not isinstance(data, Union[np.ndarray, nib.Nifti1Image]): # Ensure data is a numpy array
+        raise TypeError(f"Input data must be a numpy array or a NIfTI image, got {type(data)}")
     
     if data.ndim!= 3: # Ensure data is 3 dimensional
         raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
@@ -25,6 +28,8 @@ def plot_slices(data: np.ndarray,
         raise ValueError(f"Number of slices to plot must be between 1 and the total number of slices, got {how_many}")
     
     try:
+        if not isinstance(data, np.ndarray):
+            data = get_data(data)
         z_dim = data.shape[2]  # Size along the z-axis
         slice_indices = np.linspace(0, z_dim - 1, how_many * 2, dtype=int)  # Select evenly spaced slices
         #slice_indices = slice_indices[int(how_many/2):-int(how_many/2)]  # Remove first and last slices to avoid edge cases
@@ -47,7 +52,7 @@ def plot_slices(data: np.ndarray,
         plt.show()
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")
-
+    
 def calculate_snr(data: np.ndarray) -> float:
     """
     Calculate the Signal-to-Noise Ratio (SNR) of the MRI volume.
