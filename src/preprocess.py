@@ -404,3 +404,53 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
         raise RuntimeError(f"Smoothing failed: {str(e)}")
     
     return smoothed
+
+
+# Step 5: Crop the image using numpy
+def crop_numpy(data, target_shape=None, height_ratio=0.7, width_ratio=0.8):
+    """
+    Crop or pad a 3D image to the specified target shape.
+
+    Args:
+        data (numpy.ndarray): Input 3D MRI image.
+        target_shape (tuple, optional): Desired shape (height, width, depth). 
+                                        If None, calculate based on ratios.
+        height_ratio (float): Ratio of height to retain if target_shape is not provided.
+        width_ratio (float): Ratio of width to retain if target_shape is not provided.
+
+    Returns:
+        numpy.ndarray: Cropped or padded image.
+    """
+    current_shape = data.shape
+
+    # Dynamically calculate target shape if not provided
+    if target_shape is None:
+        target_height = int(current_shape[0] * height_ratio)
+        target_width = int(current_shape[1] * width_ratio)
+        target_depth = current_shape[2]  # Keep depth unchanged
+        target_shape = (target_height, target_width, target_depth)
+
+    # Calculate padding for each dimension
+    padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(target_shape, current_shape)]
+
+    # Pad the image if target_shape is larger, then slice to desired shape
+    cropped_or_padded = np.pad(data, padding, mode='constant')
+    slices = tuple(slice(max((c - t) // 2, 0), max((c - t) // 2, 0) + t) for c, t in zip(current_shape, target_shape))
+    
+    return cropped_or_padded[slices]
+
+
+# Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
+def apply_smoothing(data, sigma=0.8):
+    """
+    Apply Gaussian smoothing to the data to reduce noise and artifacts.
+    
+    Args:
+        data (numpy.ndarray): 3D MRI data.
+        sigma (float): Standard deviation of the Gaussian kernel.
+        
+    Returns:
+        smoothed_data (numpy.ndarray): Smoothed 3D MRI data.
+    """
+    smoothed_data = scipy.ndimage.gaussian_filter(data, sigma=sigma)
+    return smoothed_data
