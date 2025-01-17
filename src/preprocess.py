@@ -214,7 +214,10 @@ def normalize_data(data: np.ndarray,
     except Exception as e:
         raise RuntimeError(f"An error occurred while normalizing the data: {str(e)}")
     
-def extract_brain(data: np.ndarray, 
+def extract_brain(data: np.ndarray,
+                  modality: str = 't1',
+                  image_output_type: str = 'numpy',
+                  return_mask: bool = False,
                   verbose: bool = True) -> np.ndarray:
     """
     Extract brain from a given image using deep learning brain extraction
@@ -244,14 +247,21 @@ def extract_brain(data: np.ndarray,
             raise RuntimeError("Failed to initialize ants.Image object")
     
         # Perform brain extraction # Using 't1' modality for brain extraction
-        mask = antspynet.brain_extraction(image, modality='t1', verbose=verbose)
+        mask = antspynet.brain_extraction(image, modality=modality, verbose=verbose)
 
         if mask is None:
             raise RuntimeError("Failed to perform brain extraction")
         
         # Apply mask to the image
         brain = image * mask
-        return brain.numpy()
+
+        if not return_mask:
+            if image_output_type == 'numpy':
+                return brain.numpy()
+            else:
+                return brain
+        else:
+            return brain, mask    
     
     except ants.AntsrError as e:
         raise RuntimeError(f"An error occurred while performing brain extraction: {str(e)}")
@@ -452,5 +462,5 @@ def apply_smoothing(data, sigma=0.8):
     Returns:
         smoothed_data (numpy.ndarray): Smoothed 3D MRI data.
     """
-    smoothed_data = scipy.ndimage.gaussian_filter(data, sigma=sigma)
+    smoothed_data = gaussian_filter(data, sigma=sigma)
     return smoothed_data
