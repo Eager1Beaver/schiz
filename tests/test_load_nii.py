@@ -1,7 +1,5 @@
 import os
 import sys
-#import nibabel as nib
-#import matplotlib.pyplot as plt
 
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
