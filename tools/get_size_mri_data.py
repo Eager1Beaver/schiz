@@ -21,7 +21,7 @@ def main():
                 except OSError as e:
                     print(f"Error accessing file {file}: {e}")
 
-    print(f'Total size (MB) = {total_size/1024/1024}')            
+    print(f'Total size (MB) = {total_size/1024/1024}') # 20 GB (anat), 19429.138         
 
 if __name__ == '__main__':
     main()
