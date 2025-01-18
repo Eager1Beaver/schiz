@@ -14,6 +14,8 @@ Results:
 t1 - passes
 t1nobrainer - bad_alloc
 t1combined - bad_alloc
+
+t2 - passes
 """
 
 # TODO: ants.plot doesn't support displaying multiple subplots
@@ -63,11 +65,12 @@ def main(file_path, modalities):
 if __name__ == '__main__':
     # Get the current working directory of the script 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    file_path = os.path.join(current_dir, '..', rel_file_path)
+    rel_file_path_t1 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
+    rel_file_path_t2 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_T2w.nii.gz"
+    file_path = os.path.join(current_dir, '..', rel_file_path_t2)
 
     #modalities = ['t1', 't1nobrainer', 't1combined']
-    modalities = ['t1']
+    modalities = ['t2']
     
     main(file_path, modalities)
 
