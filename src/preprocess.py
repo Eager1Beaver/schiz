@@ -126,6 +126,9 @@ def get_affine(nii: nib.Nifti1Image) -> np.ndarray:
 
 def resample_image(nii: nib.Nifti1Image, 
                    voxel_size: tuple=(1, 1, 1),
+                   order: int = 3,
+                   mode: str='constant',
+                   cval: float=0.0,
                    output_format: str='numpy') -> Union[nib.Nifti1Image, np.ndarray]:
     """
     Resample a nifti image to a given voxel size
@@ -156,7 +159,7 @@ def resample_image(nii: nib.Nifti1Image,
         raise TypeError(f"output_format must be a string, got {type(output_format)}")
 
     try:
-        resampled = resample_to_output(nii, voxel_sizes=voxel_size)
+        resampled = resample_to_output(nii, voxel_sizes=voxel_size, order=order, mode=mode, cval=cval)
     except Exception as e:
         raise RuntimeError(f"Resampling failed: {str(e)}")
 
@@ -261,7 +264,7 @@ def extract_brain(data: np.ndarray,
             else:
                 return brain
         else:
-            return brain, mask    
+            return image, mask    
     
     except ants.AntsrError as e:
         raise RuntimeError(f"An error occurred while performing brain extraction: {str(e)}")
