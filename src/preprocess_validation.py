@@ -148,9 +148,14 @@ def calculate_psnr(data1: np.ndarray,
     
     if mse is None:  # If mse is not provided, calculate it
         mse = calculate_mse(data1, data2)
+
+    if mse == 0:
+        raise ValueError("Mean Squared Error (MSE) of the data is zero, PSNR cannot be computed")
+    
     max_val = np.max(data1)
     if max_val == 0:
         raise ValueError("Maximum intensity value in the data is zero, PSNR cannot be computed")
+    
     psnr = 20 * np.log10(max_val / np.sqrt(mse))
     return psnr
 

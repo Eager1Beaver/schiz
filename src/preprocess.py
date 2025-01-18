@@ -286,7 +286,7 @@ def crop_nilearn(nii: nib.Nifti1Image) -> nib.Nifti1Image:
     cropped = crop_img(nii, copy=True, rtol=1e-8, copy_header=True)
     return cropped
 
-def crop_numpy(data, target_shape = (192, 192, 192)):
+def crop_numpy_old(data, target_shape = (192, 192, 192)):
     current_shape = data.shape
     padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(target_shape, current_shape)]
     cropped_or_padded = np.pad(data, padding, mode='constant')
