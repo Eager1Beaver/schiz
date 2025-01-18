@@ -12,7 +12,7 @@ from src.preprocess_validation import calculate_mse, calculate_psnr
 
 def match_dimensions(original_image, modified_image):
     """
-    Pad or crop image2 to match the dimensions of image1.
+    Pad or crop modified_image to match the dimensions of original_image.
     """
     diff = np.array(original_image.shape) - np.array(modified_image.shape)
     pad = [(0, max(0, d)) for d in diff]  # Calculate padding required
@@ -74,20 +74,15 @@ def grid_search_resample_mse_psnr(file_path):
     best_result = min(results, key=lambda x: x['mse'])
     return best_result, results
 
-if __name__ == "__main__":
-    # Get the current working directory of the script 
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    file_path = os.path.join(current_dir, '..', '..', rel_file_path)
-
-    #file_path = "../../data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-
-    # Run grid search
-    best_params, all_results = grid_search_resample_mse_psnr(file_path)
-
+def save_results(best_params, 
+                 all_results, 
+                 output_file_name: str, 
+                 best_output_file_name: str):
+    """
+    Save the best parameters and all results to CSV files.
+    """
     # Convert all_results (list of dictionaries) into a DataFrame
     all_results_df = pd.DataFrame(all_results)
-
     # Save all results to CSV
     output_file_name = "resample_image_mse_psnr.csv"
     all_results_df.to_csv(output_file_name, index=False)
@@ -99,6 +94,22 @@ if __name__ == "__main__":
 
     print(f"Results saved to {output_file_name}")
     print(f'Best params saved to {best_output_file_name}')
+
+if __name__ == "__main__":
+    # Get the current working directory of the script 
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
+    file_path = os.path.join(current_dir, '..', '..', rel_file_path)
+
+    #file_path = "../../data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
+
+    # Run grid search
+    best_params, all_results = grid_search_resample_mse_psnr(file_path)
+
+    output_file_name = "resample_image_mse_psnr.csv"
+    best_output_file_name = "resample_image_mse_psnr_best.csv"
+
+    save_results(best_params, all_results, output_file_name, best_output_file_name)
 
     print("Best Parameters:")
     print(best_params)
