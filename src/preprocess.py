@@ -221,6 +221,7 @@ def extract_brain(data: np.ndarray,
                   modality: str = 't1',
                   image_output_type: str = 'numpy',
                   return_mask: bool = False,
+                  mask_output_type: str = None,
                   verbose: bool = True) -> np.ndarray:
     """
     Extract brain from a given image using deep learning brain extraction
@@ -235,10 +236,6 @@ def extract_brain(data: np.ndarray,
     Raises: TypeError: If input data is not a numpy array 
     RuntimeError: If brain extraction fails
     """
-    # TODO: test other modalities? ['t1', 't1nobrainer', 't1combined']
-    # t1 - ANTs-flavored
-    # t1nobrainer - FreeSurfer-flavored
-    # t1combined - combined
 
     if not isinstance(data, np.ndarray): # Ensure the data is a numpy array
         raise TypeError(f"Expected numpy array, got {type(data)}")
@@ -264,12 +261,52 @@ def extract_brain(data: np.ndarray,
             else:
                 return brain
         else:
-            return image, mask    
+            if mask_output_type == 'numpy':
+                return brain.numpy(), mask.numpy()
+            else:
+                return brain, mask    
     
     except ants.AntsrError as e:
         raise RuntimeError(f"An error occurred while performing brain extraction: {str(e)}")
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {str(e)}")
+    
+
+def auto_crop_to_brain(data, brain_mask, pad_shape=None):
+    """
+    Automatically crop a 3D MRI volume to retain only the brain region.
+
+    Args:
+        data (numpy.ndarray): Input 3D MRI volume.
+        brain_mask (numpy.ndarray): Binary mask indicating brain region.
+        pad_shape (tuple, optional): Desired shape after cropping and padding.
+                                     If None, no padding is applied.
+
+    Returns:
+        numpy.ndarray: Cropped (and optionally padded) 3D MRI volume.
+    """
+    if not isinstance(data, np.ndarray) or not isinstance(brain_mask, np.ndarray):
+        raise TypeError("Both data and brain_mask must be numpy arrays.")
+    
+    if data.shape != brain_mask.shape:
+        raise ValueError("Data and brain_mask must have the same shape.")
+    
+    # Find the bounding box of the brain region
+    coords = np.argwhere(brain_mask)
+    min_coords = coords.min(axis=0)  # Minimum indices along each dimension
+    max_coords = coords.max(axis=0) + 1  # Maximum indices along each dimension
+    
+    # Crop the volume to the bounding box
+    slices = tuple(slice(min_idx, max_idx) for min_idx, max_idx in zip(min_coords, max_coords))
+    cropped_data = data[slices]
+
+    # Pad to the desired shape if specified
+    if pad_shape is not None:
+        current_shape = cropped_data.shape
+        padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(pad_shape, current_shape)]
+        cropped_data = np.pad(cropped_data, padding, mode='constant')
+
+    return cropped_data
 
 # TODO: fix cropping, choose the most optimal
 def crop_nilearn(nii: nib.Nifti1Image) -> nib.Nifti1Image:
