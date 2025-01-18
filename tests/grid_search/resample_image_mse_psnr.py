@@ -10,17 +10,17 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from src.preprocess import load_nii, get_data, resample_image
 from src.preprocess_validation import calculate_mse, calculate_psnr
 
-def match_dimensions(image1, image2):
+def match_dimensions(original_image, modified_image):
     """
     Pad or crop image2 to match the dimensions of image1.
     """
-    diff = np.array(image1.shape) - np.array(image2.shape)
+    diff = np.array(original_image.shape) - np.array(modified_image.shape)
     pad = [(0, max(0, d)) for d in diff]  # Calculate padding required
-    crop = [slice(0, min(s1, s2)) for s1, s2 in zip(image1.shape, image2.shape)]
+    crop = [slice(0, min(s1, s2)) for s1, s2 in zip(original_image.shape, modified_image.shape)]
 
     # Pad if smaller, crop if larger
-    matched = np.pad(image2, pad_width=pad, mode='constant') if np.any(diff > 0) else image2[tuple(crop)]
-    return matched[:image1.shape[0], :image1.shape[1], :image1.shape[2]]  # Ensure final shape matches exactly
+    matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
+    return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
 def grid_search_resample_mse_psnr(file_path):
     """
