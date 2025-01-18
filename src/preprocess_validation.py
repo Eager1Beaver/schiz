@@ -3,12 +3,16 @@ import nibabel as nib
 from typing import Union
 import matplotlib.pyplot as plt
 from src.preprocess import get_data
+from skimage.metrics import mean_squared_error
+from skimage.metrics import structural_similarity as ssim
 
 def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Image support, redo docs 
                 how_many: int = 4,
-                title: str = "") -> None:
+                title: str = "",
+                axes: list = None) -> None:
     """
     Plot 4 evenly spaced slices along the z-axis (axis 2) of the MRI volume (excluding the edge cases).
+    Plot slices on provided axes or create a new figure if axes are not provided.
 
     Parameters:
     - data (ndarray): 3D MRI volume.
@@ -32,8 +36,7 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
             data = get_data(data)
         z_dim = data.shape[2]  # Size along the z-axis
         slice_indices = np.linspace(0, z_dim - 1, how_many * 2, dtype=int)  # Select evenly spaced slices
-        #slice_indices = slice_indices[int(how_many/2):-int(how_many/2)]  # Remove first and last slices to avoid edge cases
-
+        
         # Handle both odd and even values of how_many 
         start_index = (len(slice_indices) - how_many) // 2 
         end_index = start_index + how_many 
@@ -42,14 +45,21 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
         if len(slice_indices) != how_many:
             raise ValueError("Calculated slice indices do not match `how_many`")
         
-        fig, axes = plt.subplots(1, how_many, figsize=(20, 5))
+        if axes is None:
+            fig, axes = plt.subplots(1, how_many, figsize=(20, 5))
+            own_axes = True
+        else:
+            own_axes = False    
+
         for i, slice_idx in enumerate(slice_indices):
             axes[i].imshow(data[:, :, slice_idx], cmap="gray")
             axes[i].axis("off")
             axes[i].set_title(f"Slice {slice_idx}")
         
-        fig.suptitle(title)
-        plt.show()
+        if own_axes:
+            fig.suptitle(title)
+            plt.show()
+
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")
     
@@ -84,10 +94,98 @@ def calculate_snr(data: np.ndarray) -> float:
     
     return signal / noise
 
+def calculate_mse(data1: np.ndarray, data2: np.ndarray) -> float:
+    """
+    Calculate the Mean Squared Error (MSE) between two MRI volumes.
+    
+    Parameters:
+    - data1 (ndarray): 3D MRI volume.
+    - data2 (ndarray): 3D MRI volume.
+    
+    Returns:
+    float: MSE value
+
+    Raises:
+    ValueError: If the data is not 3D or empty.
+    TypeError: If the input data is not a numpy array.
+    """
+    if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
+        raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
+    
+    if data1.ndim!= 3 or data2.ndim!= 3:
+        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    
+    if data1.size == 0 or data2.size == 0: 
+        raise ValueError("Input data should not be empty")
+    
+    return mean_squared_error(data1.flatten(), data2.flatten())
+
+def calculate_psnr(data1: np.ndarray, 
+                   data2: np.ndarray,
+                   mse: float = None) -> float:
+    """
+    Calculate the Peak Signal-to-Noise Ratio (PSNR) between two MRI volumes.
+    
+    Parameters:
+    - data1 (ndarray): 3D MRI volume.
+    - data2 (ndarray): 3D MRI volume.
+
+    Returns:
+    float: PSNR value
+
+    Raises:
+    ValueError: If the data is not 3D or empty.
+    TypeError: If the input data is not a numpy array.
+    """                                                                             
+    if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
+        raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
+    
+    if data1.ndim!= 3 or data2.ndim!= 3:
+        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    
+    if data1.size == 0 or data2.size == 0: 
+        raise ValueError("Input data should not be empty")
+    
+    if mse is None:  # If mse is not provided, calculate it
+        mse = calculate_mse(data1, data2)
+    max_val = np.max(data1)
+    if max_val == 0:
+        raise ValueError("Maximum intensity value in the data is zero, PSNR cannot be computed")
+    psnr = 20 * np.log10(max_val / np.sqrt(mse))
+    return psnr
+
+def calculate_ssim(data1: np.ndarray, data2: np.ndarray) -> float:
+    """
+    Calculate the Structural Similarity Index (SSIM) between two MRI volumes.
+    
+    Parameters:
+    - data1 (ndarray): 3D MRI volume.
+    - data2 (ndarray): 3D MRI volume.
+    
+    Returns:
+    float: SSIM value
+
+    Raises:
+    ValueError: If the data is not 3D or empty.
+    TypeError: If the input data is not a numpy array.
+    """
+    if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
+        raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
+    
+    if data1.ndim!= 3 or data2.ndim!= 3:
+        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    
+    if data1.size == 0 or data2.size == 0: 
+        raise ValueError("Input data should not be empty")
+    
+    return ssim(data1, data2, data_range=data1.max() - data1.min())
+
 def plot_histogram(data: np.ndarray, 
-                   title="") -> None:
+                   title="",
+                   ax=None) -> None:
     """
     Plot the histogram of the MRI volume intensities.
+    Plot the histogram on the provided axis or create a new figure if none is provided.
     
     Parameters:
     - data (ndarray): 3D MRI volume.
@@ -107,10 +205,13 @@ def plot_histogram(data: np.ndarray,
         raise ValueError("Input data should not be empty")
     
     try:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(10, 5))
         ax.hist(data.flatten(), bins=50, color="blue", alpha=0.7)
         ax.set_title(title)
-        plt.show()
+        if not ax:
+            plt.show()
+
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")
 
