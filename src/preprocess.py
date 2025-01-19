@@ -507,3 +507,134 @@ def apply_smoothing(data, sigma=0.8):
     """
     smoothed_data = gaussian_filter(data, sigma=sigma)
     return smoothed_data
+
+
+
+# Step 5: Cropping using the bounding box of the largest brain area by determining that particular slice
+
+from skimage.filters import threshold_otsu
+
+# Determine the slice with the largest brain area
+def get_largest_brain_mask_slice(mask):
+    """
+    Determine the slices with the largest brain mask dimension,
+    using Otsu's thresholding for binarization.
+    
+    Parameters:
+    - mask: numpy array, brain mask (3D)
+    
+    Returns:
+    - largest_slice_index: int, index of the slice with the largest brain mask
+    """
+    # Apply Otsu's thresholding to binarize the mask
+    threshold = threshold_otsu(mask)
+    binary_mask = (mask > threshold).astype(np.uint8)
+
+    largest_area = 0
+    largest_slice_index = -1
+
+    # Iterate through each slice along the z-axis
+    for z in range(binary_mask.shape[2]):  # Loop through slices
+        slice_mask = binary_mask[:, :, z]
+
+        # Skip completely empty slices
+        if np.any(slice_mask > 0):
+            # Find the bounding box of the slice mask
+            coords = np.argwhere(slice_mask > 0)
+            x_min, y_min = coords.min(axis=0)
+            x_max, y_max = coords.max(axis=0) + 1  # Inclusive
+
+            height = x_max - x_min
+            width = y_max - y_min
+            area = height * width
+
+            # Update the largest slice index based on area
+            if area > largest_area:
+                largest_area = area
+                largest_slice_index = z
+
+    return binary_mask, largest_slice_index
+
+# Crop all the slices using the dimension or bounding box of the largest brain area
+def crop_to_largest_bounding_box(data, binary_mask, largest_slice_idx):
+    """
+    Crop all slices to the bounding box of the largest brain area.
+    
+    Parameters:
+    - data: numpy array, 3D MRI data
+    - mask: numpy array, binary brain mask (3D)
+    - largest_slice_idx: int, index of the slice with the largest brain mask
+    
+    Returns:
+    - cropped_data: numpy array, cropped 3D MRI data
+    """
+    # Extract the mask of the slice with the largest brain area
+    largest_slice_mask = binary_mask[:, :, largest_slice_idx]
+
+    # Find the bounding box of the largest slice
+    coords = np.argwhere(largest_slice_mask > 0)
+    x_min, y_min = coords.min(axis=0)
+    x_max, y_max = coords.max(axis=0) + 1  # Inclusive
+
+    # Crop all slices using the bounding box dimensions
+    cropped_slices = data[x_min:x_max, y_min:y_max, :]
+
+    return cropped_slices
+
+
+# Method 2: Median filtering for smoothing
+
+import scipy.ndimage
+
+def apply_median_filter(data, filter_size=3):
+    """
+    Apply median filtering to a 3D MRI image.
+
+    Args:
+        data (numpy.ndarray): Input 3D MRI image.
+        filter_size (int): Size of the neighborhood for median filtering.
+
+    Returns:
+        numpy.ndarray: Median-filtered MRI image.
+    """
+    return scipy.ndimage.median_filter(data, size=filter_size)
+
+
+# Method 3: Wavelet denoising for smoothing
+
+import pywt
+def apply_wavelet_denoising(data, wavelet='sym4', level=3, threshold=0.03):
+    """
+    Apply wavelet denoising to a 3D MRI image with improved parameters.
+    
+    Args:
+        data (numpy.ndarray): Input 3D MRI image.
+        wavelet (str): Wavelet type (e.g., 'db1', 'sym4').
+        level (int): Level of wavelet decomposition.
+        threshold (float): Threshold value for soft thresholding.
+
+    Returns:
+        numpy.ndarray: Denoised 3D MRI image.
+    """
+    denoised_slices = []
+    
+    for slice_idx in range(data.shape[2]):
+        slice_data = data[:, :, slice_idx]
+        
+        # Perform 2D wavelet decomposition
+        coeffs2 = pywt.wavedec2(slice_data, wavelet, level=level)
+        
+        # Apply soft thresholding to detail coefficients
+        thresholded_coeffs = [tuple(pywt.threshold(c, threshold, mode='soft') for c in detail) for detail in coeffs2[1:]]
+        
+        # Reconstruct the slice with thresholded coefficients
+        coeffs2[1:] = thresholded_coeffs
+        denoised_slice = pywt.waverec2(coeffs2, wavelet)
+        
+        # Ensure the reconstructed slice has the same shape as the input
+        denoised_slice = denoised_slice[:slice_data.shape[0], :slice_data.shape[1]]
+        denoised_slices.append(denoised_slice)
+    
+    # Stack slices back into a 3D array
+    denoised_image = np.stack(denoised_slices, axis=2)
+    return denoised_image
