@@ -216,61 +216,64 @@ def normalize_data(data: np.ndarray,
 
     except Exception as e:
         raise RuntimeError(f"An error occurred while normalizing the data: {str(e)}")
-    
+
 def extract_brain(data: np.ndarray,
                   modality: str = 't1',
-                  image_output_type: str = 'numpy',
-                  return_mask: bool = False,
-                  mask_output_type: str = None,
-                  verbose: bool = True) -> np.ndarray:
+                  what_to_return: dict = {'extracted_brain': 'numpy'},
+                  verbose: bool = True) -> dict:
     """
-    Extract brain from a given image using deep learning brain extraction
-    
+    Extract brain from a given image using deep learning brain extraction.
+
     Args:
-    data: np.ndarray: image data
-    verbose: bool: whether to print the output
-    
+        data (np.ndarray): Input 3D image data.
+        modality (str): Modality for brain extraction (default: 't1').
+        what_to_return (dict): Specifies objects ('image', 'mask', 'extracted_brain') to return 
+                               and their types ('numpy' or 'ants').
+                               Default: {'extracted_brain': 'numpy'}.
+        verbose (bool): Whether to print additional output (default: True).
+
     Returns:
-    np.ndarray: brain extracted image data
+        dict: A dictionary containing the requested objects in the specified formats.
 
-    Raises: TypeError: If input data is not a numpy array 
-    RuntimeError: If brain extraction fails
+    Raises:
+        TypeError: If input data is not a numpy array.
+        RuntimeError: If brain extraction fails or an invalid return type is requested.
     """
-
-    if not isinstance(data, np.ndarray): # Ensure the data is a numpy array
+    if not isinstance(data, np.ndarray):  # Ensure the data is a numpy array
         raise TypeError(f"Expected numpy array, got {type(data)}")
-    
-    try:
-        image = ants.from_numpy(data)
 
+    try:
+        # Convert numpy array to ANTs image
+        image = ants.from_numpy(data)
         if image is None:
             raise RuntimeError("Failed to initialize ants.Image object")
-    
-        # Perform brain extraction # Using 't1' modality for brain extraction
-        mask = antspynet.brain_extraction(image, modality=modality, verbose=verbose)
 
+        # Perform brain extraction
+        mask = antspynet.brain_extraction(image, modality=modality, verbose=verbose)
         if mask is None:
             raise RuntimeError("Failed to perform brain extraction")
-        
-        # Apply mask to the image
-        brain = image * mask
 
-        if not return_mask:
-            if image_output_type == 'numpy':
-                return brain.numpy()
+        # Apply the mask to extract the brain
+        extracted_brain = image * mask
+
+        # Prepare results based on 'what_to_return'
+        result = {}
+        for key, value in what_to_return.items():
+            if key == 'image':
+                result['image'] = image.numpy() if value == 'numpy' else image
+            elif key == 'mask':
+                result['mask'] = mask.numpy() if value == 'numpy' else mask
+            elif key == 'extracted_brain':
+                result['extracted_brain'] = extracted_brain.numpy() if value == 'numpy' else extracted_brain
             else:
-                return brain
-        else:
-            if mask_output_type == 'numpy':
-                return brain.numpy(), mask.numpy()
-            else:
-                return brain, mask    
-    
+                raise ValueError(f"Invalid key '{key}' in what_to_return. Valid keys are 'image', 'mask', 'extracted_brain'.")
+
+        return result
+
     except ants.AntsrError as e:
         raise RuntimeError(f"An error occurred while performing brain extraction: {str(e)}")
     except Exception as e:
-        raise RuntimeError(f"An unexpected error occurred: {str(e)}")
-    
+        raise RuntimeError(f"An unexpected error occurred: {str(e)}")  
 
 def auto_crop_to_brain(data, brain_mask, pad_shape=None):
     """
