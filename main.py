@@ -1,6 +1,6 @@
-from src.data_loader import MRIDataset
-from src.preprocess_validation import plot_slices
-from src.augmentation import get_augmentation
+from src.utils.data_loader import MRIDataset
+from src.utils.preprocess_validation import plot_slices
+from src.utils.augmentation import get_augmentation
 
 def main():
     data_path = "data"

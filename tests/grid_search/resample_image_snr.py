@@ -6,8 +6,8 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.preprocess import load_nii, resample_image
-from src.preprocess_validation import calculate_snr
+from src.utils.preprocess import load_nii, resample_image
+from src.utils.preprocess_validation import calculate_snr
 
 def grid_search_resample_snr(file_path):
     """
