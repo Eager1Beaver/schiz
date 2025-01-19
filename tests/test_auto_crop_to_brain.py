@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.utils.preprocess import load_nii, get_data, resample_image, normalize_data, extract_brain
-from src.utils.preprocess import get_largest_brain_mask_slice, crop_to_largest_bounding_box, auto_crop_to_brain
+from src.utils.preprocess import load_nii, resample_image, normalize_data, extract_brain
+from src.utils.preprocess import get_largest_brain_mask_slice, crop_to_largest_bounding_box
 from src.utils.preprocess_validation import plot_slices, calculate_snr, calculate_mse, calculate_psnr, calculate_ssim
 
 def main():
@@ -46,5 +46,6 @@ if __name__ == '__main__':
     fig.suptitle("Slice Comparison")
     plt.show()
 
+# TODO: calculate metrics
 
 

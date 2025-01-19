@@ -496,7 +496,7 @@ def crop_numpy(data, target_shape=None, height_ratio=0.7, width_ratio=0.8):
 
 
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_smoothing(data, sigma=0.8):
+def apply_gaussian_smoothing(data, sigma=0.8):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
     
