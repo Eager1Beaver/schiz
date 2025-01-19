@@ -1,0 +1,114 @@
+\documentclass[14pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{listingsutf8}
+%\usepackage[T2A]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amssymb,amsmath,amsfonts,amsbsy}
+%\usepackage{mathtext}
+%\usepackage{indentfirst}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[center]{caption}
+\usepackage{subcaption}
+\usepackage{cite}
+\usepackage{enumerate}
+\usepackage{enumitem}
+%%\usepackage[braket]{qcircuit}
+\usepackage{marvosym}
+\usepackage{multicol}
+\usepackage{comment}
+\usepackage{authblk}
+\usepackage{lipsum}
+%\usepackage{hyperref}
+\graphicspath{{figs/}}
+%\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+%\bibliographystyle{utf8gost780u}
+%\usepackage{apacite}
+%\bibliographystyle{apacite}
+
+% Print line number page wisely 
+%\usepackage[pagewise]{lineno}
+%\linenumbers
+
+%\renewcommand\linenumberfont{\normalfont\bfseries\normal}
+%\renewcommand\linenumberfont{\normal}
+
+\title{\textbf{Schiz} Project}
+
+\author[1]{Ilia Golub}
+
+%\author[1]{Pratit Kandel}
+
+\author[1]{Prosperity Oguama}
+
+\affil[1]{Gonda Interdisciplinary Brain Research Center, Bar-Ilan University, Ramat Gan, Israel}
+%\affil[4]{Institute of Natural Sciences and Mathematics, Ural Federal University, Ekaterinburg, Russia}
+%\affil[5]{Department of Cardiology, Clinical Sciences, Lund University, Lund, Sweden}
+%\affil[6]{Arrhythmia Clinic, Skane University Hospital, Lund, Sweden}
+%\affil[*]{Correspondence: golub.ilia.ilya@gmail.com}
+
+\setcounter{Maxaffil}{0}
+\renewcommand\Affilfont{\itshape\small}
+\date{}
+
+\usepackage[onehalfspacing]{setspace}
+
+\usepackage{listings}
+\renewcommand{\lstlistingname}{Listing}
+\lstset{language=Python,
+        numbers=left,
+        basicstyle=\small\ttfamily,
+        breaklines=true,
+        showstringspaces=false,
+        stepnumber=1,         
+        numbersep=5pt,          
+        showspaces=false,       
+        showtabs=false,         
+        %frame=single,          
+        tabsize=4,              
+        captionpos=b,           
+        breakatwhitespace=false,
+        escapeinside={\%*}{*)}, 
+        texcl=true
+        }
+
+\usepackage[left=2.5cm, right=1cm, top=1cm, bottom=2.5cm]{geometry}
+
+\usepackage[
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={CW-2},
+    pdfauthor={Golub I},
+    bookmarks=true,
+    linktoc=all,
+	final]{hyperref}
+
+\usepackage[nottoc]{tocbibind}
+
+\makeatletter
+\renewcommand{\@biblabel}[1]{#1.}
+\makeatother
+
+\sloppy
+
+\righthyphenmin=2
+
+\renewcommand{\theenumi}{\arabic{enumi}.}
+\renewcommand{\labelenumi}{\arabic{enumi}.} 
+\renewcommand{\theenumii}{\arabic{enumii}.} 
+\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}.}
+\renewcommand{\theenumiii}{\arabic{enumiii}.} 
+\renewcommand{\labelenumiii}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.} 
+
+
+\DeclareMathOperator{\rot}{rot}		% Определяем операции rot
+\DeclareMathOperator{\diverg}{div}	% div
+\DeclareMathOperator{\grad}{grad}	% grad
+\DeclareMathOperator{\arth}{Arth}    % arc tanh
+\DeclareMathOperator{\Ai}{Ai}
+\DeclareMathOperator{\Bi}{Bi}
+
+\setcounter{tocdepth}{1}
