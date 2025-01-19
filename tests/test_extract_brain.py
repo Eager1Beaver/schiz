@@ -1,6 +1,7 @@
 import os
 import sys
 import ants
+import numpy as np
 import matplotlib.pyplot as plt
 
 # Add the root directory to sys.path
@@ -20,7 +21,8 @@ t2 - passes
 
 # TODO: ants.plot doesn't support displaying multiple subplots
 # But it can be implemented using pure numpy
-def plot_brain_extractions(images_with_masks, modalities) -> None:
+
+'''def plot_brain_extractions(images_with_masks, modalities) -> None:
     """
     Plot multiple brain extraction results in one figure.
 
@@ -72,16 +74,10 @@ if __name__ == '__main__':
     #modalities = ['t1', 't1nobrainer', 't1combined']
     modalities = ['t2']
     
-    main(file_path, modalities)
+    main(file_path, modalities)'''
 
 
-
-'''
 # Alternative implementation:
-
-import matplotlib.pyplot as plt
-import numpy as np
-
 def plot_brain_extraction(image, mask, ax, title=""):
     """
     Plot the brain extraction result using Matplotlib.
@@ -92,14 +88,16 @@ def plot_brain_extraction(image, mask, ax, title=""):
     - ax (matplotlib.axes.Axes): Axis to plot the result.
     - title (str): Title of the plot.
     """
-    image_data = image.numpy()
-    mask_data = mask.numpy()
+    #image_data = image.numpy()
+    #mask_data = mask.numpy()
+    image_data = image
+    mask_data = mask
 
     # Overlay mask onto the image
     composite = np.ma.masked_where(mask_data == 0, mask_data)
 
-    ax.imshow(image_data, cmap="gray", alpha=0.7)
-    ax.imshow(composite, cmap="Reds", alpha=0.5)  # Mask in red
+    ax.imshow(image_data[:, :, 130], cmap="gray", alpha=0.7)
+    ax.imshow(composite[:, :, 130], cmap="Reds", alpha=0.5)  # Mask in red
     ax.axis("off")
     ax.set_title(title)
 
@@ -110,17 +108,24 @@ def main(file_path, modalities):
 
     fig, axes = plt.subplots(1, len(modalities), figsize=(15, 5))
     for ax, modality in zip(axes, modalities):
-        image, mask = extract_brain(data=normalized_image, modality=modality, return_mask=True, verbose=True)
+        result = extract_brain(data=normalized_image, 
+                                    modality=modality, 
+                                    what_to_return={'image':'numpy', 'mask':'numpy'}, 
+                                    verbose=True)
+        image, mask = result['image'], result['mask']  # Extract brain image and mask from result
         plot_brain_extraction(image, mask, ax=ax, title=f"Modality: {modality}")
 
     plt.tight_layout()
     plt.show()
 
-
 if __name__ == '__main__':
-    file_path = "../data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    modalities = ['t1', 't1nobrainer', 't1combined']
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    rel_file_path_t1 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
+    rel_file_path_t2 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_T2w.nii.gz"
+    file_path = os.path.join(current_dir, '..', rel_file_path_t2)    
+    
+    modalities = ['t1', 't2']
+
     main(file_path, modalities)
 
-'''
-    
+   
