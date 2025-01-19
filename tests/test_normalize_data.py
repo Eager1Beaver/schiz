@@ -6,8 +6,8 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.preprocess import load_nii, get_data, normalize_data
-from src.preprocess_validation import calculate_snr, calculate_mse, calculate_psnr, calculate_ssim
+from src.utils.preprocess import load_nii, get_data, normalize_data
+from src.utils.preprocess_validation import calculate_snr, calculate_mse, calculate_psnr, calculate_ssim
 
 def evaluate_normalization_methods(original_data: np.ndarray, 
                                    output_file_name: str):

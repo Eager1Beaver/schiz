@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.preprocess import load_nii, get_data, resample_image
-from src.preprocess_validation import plot_slices, calculate_snr, plot_histogram
+from src.utils.preprocess import load_nii, get_data, resample_image
+from src.utils.preprocess_validation import plot_slices, calculate_snr, plot_histogram
 
 """
 Results:

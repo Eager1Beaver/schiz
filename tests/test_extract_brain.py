@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.preprocess import load_nii, resample_image, normalize_data, extract_brain
+from src.utils.preprocess import load_nii, resample_image, normalize_data, extract_brain
 
 """
 Results:
