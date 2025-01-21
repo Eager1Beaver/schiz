@@ -1,34 +1,22 @@
-
-# TODO: deal with cropping and smoothing
-
 import os
-
 import torch
-
-# For smoothing, wavelet denoising
 import pywt
-
 import ants
-# For DL brain extraction
 import antspynet
-
 import numpy as np
-
 from typing import Union
-
-# For loading nifti files
 import nibabel as nib
-
-# For smoothing, nibabel smooth
 from nibabel.processing import smooth_image
 from nibabel.processing import resample_to_output 
-
-# For cropping and resampling
-from nilearn.image import crop_img #, resample_img 
-
 from scipy.ndimage import median_filter
-from scipy.ndimage import gaussian_filter # for smoothing, gaussian filter
+from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
+
+"""
+# pywt --- For smoothing, wavelet denoising
+# antspynet --- For DL brain extraction
+# nibabel --- For loading nifti files
+# """
 
 def load_nii(file_path: str) -> nib.Nifti1Image:
     """
