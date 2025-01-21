@@ -126,6 +126,25 @@ def get_affine(nii: nib.Nifti1Image) -> np.ndarray:
 
     return affine
 
+def match_dimensions(original_image: np.ndarray, modified_image: np.ndarray) -> np.ndarray:
+    """
+    Pad or crop modified_image to match the dimensions of original_image.
+
+    Args:
+    original_image: np.ndarray: original image data
+    modified_image: np.ndarray: modified image data
+
+    Returns:
+    np.ndarray: resampled and padded/cropped modified image data
+    """
+    diff = np.array(original_image.shape) - np.array(modified_image.shape)
+    pad = [(0, max(0, d)) for d in diff]  # Calculate padding required
+    crop = [slice(0, min(s1, s2)) for s1, s2 in zip(original_image.shape, modified_image.shape)]
+
+    # Pad if smaller, crop if larger
+    matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
+    return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
+
 def resample_image(nii: nib.Nifti1Image, 
                    voxel_size: tuple=(1, 1, 1),
                    order: int = 3,
@@ -499,7 +518,8 @@ def crop_numpy(data, target_shape=None, height_ratio=0.7, width_ratio=0.8):
 def apply_gaussian_smoothing(data, sigma=0.8):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
-    
+    I understand you’ve been needing space, and I really appreciate you letting me know 
+Just know I’m always here if you ever need someone to talk to or lean on
     Args:
         data (numpy.ndarray): 3D MRI data.
         sigma (float): Standard deviation of the Gaussian kernel.
