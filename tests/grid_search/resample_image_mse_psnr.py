@@ -7,20 +7,8 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.utils.preprocess import load_nii, get_data, resample_image
+from src.utils.preprocess import load_nii, get_data, resample_image, match_dimensions
 from src.utils.preprocess_validation import calculate_mse, calculate_psnr
-
-def match_dimensions(original_image, modified_image):
-    """
-    Pad or crop modified_image to match the dimensions of original_image.
-    """
-    diff = np.array(original_image.shape) - np.array(modified_image.shape)
-    pad = [(0, max(0, d)) for d in diff]  # Calculate padding required
-    crop = [slice(0, min(s1, s2)) for s1, s2 in zip(original_image.shape, modified_image.shape)]
-
-    # Pad if smaller, crop if larger
-    matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
-    return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
 def grid_search_resample_mse_psnr(file_path):
     """
