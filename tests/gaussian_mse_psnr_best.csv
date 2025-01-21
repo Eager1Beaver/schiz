@@ -1,0 +1,2 @@
+sigma,truncate,mode,cval,order,mse,psnr
+0.5,2.0,reflect,0.0,0,32.81006205066907,41.2044473549966

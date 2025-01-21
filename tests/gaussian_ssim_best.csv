@@ -1,0 +1,2 @@
+sigma,truncate,mode,cval,order,ssim
+0.5,2.0,reflect,0.0,0,0.9867734418949552

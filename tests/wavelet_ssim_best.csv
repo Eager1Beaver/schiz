@@ -1,0 +1,2 @@
+wavelet,level,threshold,thresholding,mode,ssim
+db1,4,0.01,hard,symmetric,1.0000000000000002

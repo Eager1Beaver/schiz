@@ -482,7 +482,7 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
 
 
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_gaussian_smoothing(data, sigma=0.8):
+def apply_gaussian_smoothing(data, sigma, order, mode, cval, truncate):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
     I understand you’ve been needing space, and I really appreciate you letting me know 
@@ -494,12 +494,12 @@ Just know I’m always here if you ever need someone to talk to or lean on
     Returns:
         smoothed_data (numpy.ndarray): Smoothed 3D MRI data.
     """
-    smoothed_data = gaussian_filter(data, sigma=sigma)
+    smoothed_data = gaussian_filter(data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
     return smoothed_data
 
 # Method 2: Median filtering for smoothing
 
-def apply_median_filter(data, filter_size=3):
+def apply_median_filter(data, filter_size, mode, cval):
     """
     Apply median filtering to a 3D MRI image.
 
@@ -510,22 +510,25 @@ def apply_median_filter(data, filter_size=3):
     Returns:
         numpy.ndarray: Median-filtered MRI image.
     """
-    return median_filter(data, size=filter_size)
+    return median_filter(data, size=filter_size, mode=mode, cval=cval)
 
 
 # Method 3: Wavelet denoising for smoothing
 
 #import pywt
-def apply_wavelet_denoising(data, wavelet='sym4', level=3, threshold=0.03):
+def apply_wavelet_denoising(data, wavelet='sym4', level=3, threshold=0.03, 
+                            thresholding='soft', mode='symmetric'):
     """
-    Apply wavelet denoising to a 3D MRI image with improved parameters.
+    Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
     
     Args:
         data (numpy.ndarray): Input 3D MRI image.
         wavelet (str): Wavelet type (e.g., 'db1', 'sym4').
         level (int): Level of wavelet decomposition.
-        threshold (float): Threshold value for soft thresholding.
-
+        threshold (float): Threshold value for soft or hard thresholding.
+        thresholding (str): Type of thresholding ('soft' or 'hard').
+        mode (str): Boundary handling mode (e.g., 'symmetric', 'constant').
+    
     Returns:
         numpy.ndarray: Denoised 3D MRI image.
     """
@@ -535,14 +538,17 @@ def apply_wavelet_denoising(data, wavelet='sym4', level=3, threshold=0.03):
         slice_data = data[:, :, slice_idx]
         
         # Perform 2D wavelet decomposition
-        coeffs2 = pywt.wavedec2(slice_data, wavelet, level=level)
+        coeffs2 = pywt.wavedec2(slice_data, wavelet, mode=mode, level=level)
         
-        # Apply soft thresholding to detail coefficients
-        thresholded_coeffs = [tuple(pywt.threshold(c, threshold, mode='soft') for c in detail) for detail in coeffs2[1:]]
+        # Apply soft or hard thresholding to detail coefficients
+        thresholded_coeffs = [
+            tuple(pywt.threshold(c, threshold, mode=thresholding) for c in detail) 
+            for detail in coeffs2[1:]
+        ]
         
         # Reconstruct the slice with thresholded coefficients
         coeffs2[1:] = thresholded_coeffs
-        denoised_slice = pywt.waverec2(coeffs2, wavelet)
+        denoised_slice = pywt.waverec2(coeffs2, wavelet, mode=mode)
         
         # Ensure the reconstructed slice has the same shape as the input
         denoised_slice = denoised_slice[:slice_data.shape[0], :slice_data.shape[1]]
