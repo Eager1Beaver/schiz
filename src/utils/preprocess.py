@@ -284,63 +284,76 @@ def extract_brain(data: np.ndarray,
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {str(e)}")  
 
-def auto_crop_to_brain(data, brain_mask, pad_shape=None):
+# Step 5: Cropping using the bounding box of the largest brain area by determining that particular slice
+
+# Determine the slice with the largest brain area
+def get_largest_brain_mask_slice(mask: np.ndarray) -> tuple[np.ndarray, int]:
     """
-    Automatically crop a 3D MRI volume to retain only the brain region.
-
-    Args:
-        data (numpy.ndarray): Input 3D MRI volume.
-        brain_mask (numpy.ndarray): Binary mask indicating brain region.
-        pad_shape (tuple, optional): Desired shape after cropping and padding.
-                                     If None, no padding is applied.
-
-    Returns:
-        numpy.ndarray: Cropped (and optionally padded) 3D MRI volume.
-    """
-    if not isinstance(data, np.ndarray) or not isinstance(brain_mask, np.ndarray):
-        raise TypeError("Both data and brain_mask must be numpy arrays.")
+    Determine the slices with the largest brain mask dimension,
+    using Otsu's thresholding for binarization.
     
-    if data.shape != brain_mask.shape:
-        raise ValueError("Data and brain_mask must have the same shape.")
-    
-    # Find the bounding box of the brain region
-    coords = np.argwhere(brain_mask)
-    min_coords = coords.min(axis=0)  # Minimum indices along each dimension
-    max_coords = coords.max(axis=0) + 1  # Maximum indices along each dimension
-    
-    # Crop the volume to the bounding box
-    slices = tuple(slice(min_idx, max_idx) for min_idx, max_idx in zip(min_coords, max_coords))
-    cropped_data = data[slices]
-
-    # Pad to the desired shape if specified
-    if pad_shape is not None:
-        current_shape = cropped_data.shape
-        padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(pad_shape, current_shape)]
-        cropped_data = np.pad(cropped_data, padding, mode='constant')
-
-    return cropped_data
-
-# TODO: fix cropping, choose the most optimal
-def crop_nilearn(nii: nib.Nifti1Image) -> nib.Nifti1Image:
-    """
-    Crop the image to remove zero values
-    
-    Args:
-    nii: nib.Nifti1Image: nifti image object
-    verbose: bool: whether to print the output
+    Parameters:
+    - mask: numpy array, brain mask (3D)
     
     Returns:
-    nib.Nifti1Image: cropped nifti image object
+    - largest_slice_index: int, index of the slice with the largest brain mask
     """
-    cropped = crop_img(nii, copy=True, rtol=1e-8, copy_header=True)
-    return cropped
+    # Apply Otsu's thresholding to binarize the mask
+    threshold = threshold_otsu(mask)
+    binary_mask = (mask > threshold).astype(np.uint8)
 
-def crop_numpy_old(data, target_shape = (192, 192, 192)):
-    current_shape = data.shape
-    padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(target_shape, current_shape)]
-    cropped_or_padded = np.pad(data, padding, mode='constant')
-    slices = tuple(slice(max((c - t) // 2, 0), max((c - t) // 2, 0) + t) for c, t in zip(current_shape, target_shape))
-    return cropped_or_padded[slices]
+    largest_area = 0
+    largest_slice_index = -1
+
+    # Iterate through each slice along the z-axis
+    for z in range(binary_mask.shape[2]):  # Loop through slices
+        slice_mask = binary_mask[:, :, z]
+
+        # Skip completely empty slices
+        if np.any(slice_mask > 0):
+            # Find the bounding box of the slice mask
+            coords = np.argwhere(slice_mask > 0)
+            x_min, y_min = coords.min(axis=0)
+            x_max, y_max = coords.max(axis=0) + 1  # Inclusive
+
+            height = x_max - x_min
+            width = y_max - y_min
+            area = height * width
+
+            # Update the largest slice index based on area
+            if area > largest_area:
+                largest_area = area
+                largest_slice_index = z
+
+    return binary_mask, largest_slice_index
+
+# Crop all the slices using the dimension or bounding box of the largest brain area
+def crop_to_largest_bounding_box(data: np.ndarray, 
+                                 binary_mask: np.ndarray, 
+                                 largest_slice_idx: int) -> np.ndarray:
+    """
+    Crop all slices to the bounding box of the largest brain area.
+    
+    Parameters:
+    - data: numpy array, 3D MRI data
+    - mask: numpy array, binary brain mask (3D)
+    - largest_slice_idx: int, index of the slice with the largest brain mask
+    
+    Returns:
+    - cropped_data: numpy array, cropped 3D MRI data
+    """
+    # Extract the mask of the slice with the largest brain area
+    largest_slice_mask = binary_mask[:, :, largest_slice_idx]
+
+    # Find the bounding box of the largest slice
+    coords = np.argwhere(largest_slice_mask > 0)
+    x_min, y_min = coords.min(axis=0)
+    x_max, y_max = coords.max(axis=0) + 1  # Inclusive
+
+    # Crop all slices using the bounding box dimensions
+    cropped_slices = data[x_min:x_max, y_min:y_max, :]
+
+    return cropped_slices
 
 # TODO: test different smoothing methods, choose the most optimal?
 def smooth_gaussian(data: np.ndarray, 
@@ -455,7 +468,7 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
 
     try:
         # Cropping
-        cropped = crop_numpy(extracted) # TODO: fix cropping
+        cropped = crop_to_largest_bounding_box(extracted) # TODO: fix cropping
     except Exception as e:
         raise RuntimeError(f"Cropping failed: {str(e)}")
 
@@ -466,40 +479,6 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
         raise RuntimeError(f"Smoothing failed: {str(e)}")
     
     return smoothed
-
-
-# Step 5: Crop the image using numpy
-def crop_numpy(data, target_shape=None, height_ratio=0.7, width_ratio=0.8):
-    """
-    Crop or pad a 3D image to the specified target shape.
-
-    Args:
-        data (numpy.ndarray): Input 3D MRI image.
-        target_shape (tuple, optional): Desired shape (height, width, depth). 
-                                        If None, calculate based on ratios.
-        height_ratio (float): Ratio of height to retain if target_shape is not provided.
-        width_ratio (float): Ratio of width to retain if target_shape is not provided.
-
-    Returns:
-        numpy.ndarray: Cropped or padded image.
-    """
-    current_shape = data.shape
-
-    # Dynamically calculate target shape if not provided
-    if target_shape is None:
-        target_height = int(current_shape[0] * height_ratio)
-        target_width = int(current_shape[1] * width_ratio)
-        target_depth = current_shape[2]  # Keep depth unchanged
-        target_shape = (target_height, target_width, target_depth)
-
-    # Calculate padding for each dimension
-    padding = [(max((t - c) // 2, 0), max((t - c + 1) // 2, 0)) for t, c in zip(target_shape, current_shape)]
-
-    # Pad the image if target_shape is larger, then slice to desired shape
-    cropped_or_padded = np.pad(data, padding, mode='constant')
-    slices = tuple(slice(max((c - t) // 2, 0), max((c - t) // 2, 0) + t) for c, t in zip(current_shape, target_shape))
-    
-    return cropped_or_padded[slices]
 
 
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
@@ -518,82 +497,7 @@ Just know I’m always here if you ever need someone to talk to or lean on
     smoothed_data = gaussian_filter(data, sigma=sigma)
     return smoothed_data
 
-
-
-# Step 5: Cropping using the bounding box of the largest brain area by determining that particular slice
-
-
-# Determine the slice with the largest brain area
-def get_largest_brain_mask_slice(mask):
-    """
-    Determine the slices with the largest brain mask dimension,
-    using Otsu's thresholding for binarization.
-    
-    Parameters:
-    - mask: numpy array, brain mask (3D)
-    
-    Returns:
-    - largest_slice_index: int, index of the slice with the largest brain mask
-    """
-    # Apply Otsu's thresholding to binarize the mask
-    threshold = threshold_otsu(mask)
-    binary_mask = (mask > threshold).astype(np.uint8)
-
-    largest_area = 0
-    largest_slice_index = -1
-
-    # Iterate through each slice along the z-axis
-    for z in range(binary_mask.shape[2]):  # Loop through slices
-        slice_mask = binary_mask[:, :, z]
-
-        # Skip completely empty slices
-        if np.any(slice_mask > 0):
-            # Find the bounding box of the slice mask
-            coords = np.argwhere(slice_mask > 0)
-            x_min, y_min = coords.min(axis=0)
-            x_max, y_max = coords.max(axis=0) + 1  # Inclusive
-
-            height = x_max - x_min
-            width = y_max - y_min
-            area = height * width
-
-            # Update the largest slice index based on area
-            if area > largest_area:
-                largest_area = area
-                largest_slice_index = z
-
-    return binary_mask, largest_slice_index
-
-# Crop all the slices using the dimension or bounding box of the largest brain area
-def crop_to_largest_bounding_box(data, binary_mask, largest_slice_idx):
-    """
-    Crop all slices to the bounding box of the largest brain area.
-    
-    Parameters:
-    - data: numpy array, 3D MRI data
-    - mask: numpy array, binary brain mask (3D)
-    - largest_slice_idx: int, index of the slice with the largest brain mask
-    
-    Returns:
-    - cropped_data: numpy array, cropped 3D MRI data
-    """
-    # Extract the mask of the slice with the largest brain area
-    largest_slice_mask = binary_mask[:, :, largest_slice_idx]
-
-    # Find the bounding box of the largest slice
-    coords = np.argwhere(largest_slice_mask > 0)
-    x_min, y_min = coords.min(axis=0)
-    x_max, y_max = coords.max(axis=0) + 1  # Inclusive
-
-    # Crop all slices using the bounding box dimensions
-    cropped_slices = data[x_min:x_max, y_min:y_max, :]
-
-    return cropped_slices
-
-
 # Method 2: Median filtering for smoothing
-
-#import scipy.ndimage
 
 def apply_median_filter(data, filter_size=3):
     """
