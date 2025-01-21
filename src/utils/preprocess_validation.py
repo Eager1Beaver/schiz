@@ -22,7 +22,7 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
     Raises: ValueError: If the data is not 3D or `how_many` is invalid. 
     TypeError: If the input data is not a numpy array.
     """
-    if not isinstance(data, Union[np.ndarray, nib.Nifti1Image]): # Ensure data is a numpy array
+    if not isinstance(data, np.ndarray) or not isinstance(data, nib.Nifti1Image): # Ensure data is a numpy array # 
         raise TypeError(f"Input data must be a numpy array or a NIfTI image, got {type(data)}")
     
     if data.ndim!= 3: # Ensure data is 3 dimensional
