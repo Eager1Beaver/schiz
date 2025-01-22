@@ -39,7 +39,7 @@ def grid_search_resample_mse_psnr(file_path):
     # Iterate through parameter combinations
     for order, mode, cval in param_grid:
         try:
-            print(f'Current combination count: {combination_count}/71')
+            print(f'Current combination count: {combination_count}/{len(param_grid)}')
             # Resample the image
             resampled_data = resample_image(nii, voxel_size=voxel_size, order=order, mode=mode, cval=cval, output_format='numpy')
             resampled_data_matched = match_dimensions(original_data, resampled_data)
@@ -72,12 +72,10 @@ def save_results(best_params,
     # Convert all_results (list of dictionaries) into a DataFrame
     all_results_df = pd.DataFrame(all_results)
     # Save all results to CSV
-    output_file_name = "resample_image_mse_psnr.csv"
     all_results_df.to_csv(output_file_name, index=False)
 
     # Save best_params separately
     best_params_df = pd.DataFrame([best_params])
-    best_output_file_name = "resample_image_mse_psnr_best.csv"
     best_params_df.to_csv(best_output_file_name, index=False)
 
     print(f"Results saved to {output_file_name}")
