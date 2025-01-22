@@ -167,7 +167,7 @@ def visualize_mask(data: np.ndarray, mask: np.ndarray, slice_index: int):
     plt.imshow(mask[:, :, slice_index], cmap="gray")
     plt.show()
 
-def generate_brain_mask(data: np.ndarray, otsu_scaling: float = 0.8, min_intensity_factor: float = 0.1) -> np.ndarray:
+def generate_brain_mask(data: np.ndarray, otsu_scaling: float = 1, min_intensity_factor: float = 0.1) -> np.ndarray:
     """
     Combine Otsu's thresholding with an intensity-based threshold for mask generation.
     """

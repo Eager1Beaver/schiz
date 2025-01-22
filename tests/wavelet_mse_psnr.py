@@ -7,7 +7,7 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.utils.preprocess import load_nii, get_data, apply_wavelet_denoising, match_dimensions
+from src.utils.preprocess import load_nii, resample_image, normalize_data, apply_wavelet_denoising
 from src.utils.preprocess_validation import calculate_mse, calculate_psnr
 
 
@@ -25,7 +25,8 @@ def grid_search_wavelet_mse_psnr(file_path):
 
     # Load the NIfTI file
     nii = load_nii(file_path)
-    original_data = get_data(nii)  # Extract data from the NIfTI object
+    resampled_data = resample_image(nii)
+    normalized_data = normalize_data(resampled_data)
 
     # Define parameter grid
     wavelet = ['db1', 'sym4', 'coif1']  # Different wavelet types
@@ -43,14 +44,11 @@ def grid_search_wavelet_mse_psnr(file_path):
         try:
             print(f'Current combination: {combination_count + 1}/{len(param_grid)}')
             # Apply Wavelet denoising
-            wavelet_data = apply_wavelet_denoising(original_data, wavelet=wavelet, level=level, threshold=threshold, thresholding=thresholding_mode, mode=boundary_mode)
-            
-            # Match dimensions if necessary (in case of boundary effects)
-            wavelet_data_matched = match_dimensions(original_data, wavelet_data)
+            wavelet_data = apply_wavelet_denoising(normalized_data, wavelet=wavelet, level=level, threshold=threshold, thresholding=thresholding_mode, mode=boundary_mode)
             
             # Calculate MSE and PSNR
-            mse = calculate_mse(original_data, wavelet_data_matched)
-            psnr = calculate_psnr(original_data, wavelet_data_matched, mse)
+            mse = calculate_mse(normalized_data, wavelet_data)
+            psnr = calculate_psnr(normalized_data, wavelet_data, mse)
 
             # Add result to the list of results
             results.append({

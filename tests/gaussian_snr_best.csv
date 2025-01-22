@@ -1,2 +1,2 @@
 sigma,truncate,mode,cval,order,snr
-2.0,4.0,wrap,0.0,0,0.7764612054959852
+1.5,2.0,constant,1.0,2,104.05923958277982

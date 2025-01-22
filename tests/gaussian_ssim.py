@@ -7,7 +7,7 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.utils.preprocess import load_nii, get_data, apply_gaussian_smoothing, match_dimensions
+from src.utils.preprocess import load_nii, resample_image, normalize_data, apply_gaussian_smoothing
 from src.utils.preprocess_validation import calculate_ssim
 
 
@@ -25,7 +25,8 @@ def grid_search_smoothing_ssim(file_path):
 
     # Load the NIfTI file
     nii = load_nii(file_path)
-    original_data = get_data(nii)  # Extract data from the NIfTI object
+    resampled_data = resample_image(nii)
+    normalized_data = normalize_data(resampled_data)
 
     # Define parameter grid
     sigmas = [0.5, 1.0, 1.5, 2.0]  # Standard deviation of the Gaussian kernel
@@ -43,13 +44,10 @@ def grid_search_smoothing_ssim(file_path):
         try:
             print(f'Current combination: {combination_count + 1}/{len(param_grid)}')
             # Apply Gaussian smoothing
-            smoothed_data = apply_gaussian_smoothing(original_data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
-            
-            # Match dimensions if necessary (in case of boundary effects)
-            smoothed_data_matched = match_dimensions(original_data, smoothed_data)
+            smoothed_data = apply_gaussian_smoothing(normalized_data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
             
             # Calculate SSIM
-            ssim_val = calculate_ssim(original_data, smoothed_data_matched)
+            ssim_val = calculate_ssim(normalized_data, smoothed_data)
 
             # Add result to the list of results
             results.append({
