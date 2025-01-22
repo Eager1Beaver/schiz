@@ -357,7 +357,24 @@ def calculate_cnr(data: np.ndarray, mask: np.ndarray) -> float:
     cnr = np.abs(signal - background) / noise
     return cnr
 
-def calculate_rmse(data: np.ndarray, max_intensity: float = None) -> float:
+def calculate_rmse(data: np.ndarray, reference: np.ndarray) -> float:
+    """
+    Calculate the Root Mean Square Error (RMSE) between the data and the reference.
+    
+    Args:
+        data (np.ndarray): 3D MRI volume (e.g., the actual image).
+        reference (np.ndarray): Ideal reference volume (e.g., maximum intensity).
+        
+    Returns:
+        float: RMSE value.
+    """
+    if data.shape != reference.shape:
+        raise ValueError("Data and reference must have the same shape.")
+    
+    rmse = np.sqrt(np.mean((data - reference) ** 2))
+    return rmse
+
+def calculate_relative_rmse(data: np.ndarray, max_intensity: float = None) -> float:
     """
     Calculate the Root Mean Square Error (RMSE) between the data and the reference (filled with max intensity).
     
