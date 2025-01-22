@@ -1,7 +1,7 @@
 # Schiz Project
 
 ## Overview
-The Schiz project is a software application designed to detect schizophrenia from MRI scans<!---[briefly describe the purpose of your project].--> 
+The Schiz project is a software application designed to detect schizophrenia from MRI scans.<!---[briefly describe the purpose of your project].--> 
 This project aims to propose an optimal preprocessing pipeline to obtain the best detection results <!---[mention the main goal or functionality].-->
 
 ## Features
