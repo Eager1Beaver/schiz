@@ -133,7 +133,7 @@ def match_dimensions(original_image: np.ndarray, modified_image: np.ndarray) -> 
     matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
     return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
-def resample_image(data: Union[nib.Nifti1Image, np.ndarray],
+def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
                    voxel_size: tuple=(1, 1, 1),
                    order: int = 1,
                    mode: str='reflect',
@@ -155,8 +155,8 @@ def resample_image(data: Union[nib.Nifti1Image, np.ndarray],
     ValueError: If voxel_size or output_format are invalid
     RuntimeError: If resampling fails
     """
-    if not isinstance(data, nib.Nifti1Image) or not isinstance(data, np.ndarray): # Ensure the image is a nibabel Nifti1Image
-        raise TypeError(f"Expected nib.Nifti1Image, got {type(data)}")
+    #if not isinstance(data, nib.Nifti1Image) or not isinstance(data, np.ndarray): # Ensure the image is a nibabel Nifti1Image
+    #    raise TypeError(f"Expected nib.Nifti1Image, got {type(data)}")
 
     if not isinstance(voxel_size, tuple) or len(voxel_size) != 3:
         raise ValueError(f"voxel_size must be a tuple of length 3, got {voxel_size}")
@@ -168,9 +168,9 @@ def resample_image(data: Union[nib.Nifti1Image, np.ndarray],
         raise TypeError(f"output_format must be a string, got {type(output_format)}")
 
     try:
-        if isinstance(data, np.ndarray):
+        #if isinstance(data, np.ndarray):
             # Convert numpy array to nibabel Nifti1Image
-            data = nib.Nifti1Image(data, get_affine(data))
+        #    data = nib.Nifti1Image(data, get_affine(data))
         resampled = resample_to_output(data, voxel_sizes=voxel_size, order=order, mode=mode, cval=cval)
     except Exception as e:
         raise RuntimeError(f"Resampling failed: {str(e)}")
