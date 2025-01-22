@@ -7,7 +7,7 @@ import pandas as pd
 # Add the root directory to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.utils.preprocess import load_nii, get_data, apply_median_filter, match_dimensions
+from src.utils.preprocess import load_nii, resample_image, normalize_data, apply_median_filter
 from src.utils.preprocess_validation import calculate_mse, calculate_psnr
 
 def grid_search_median_mse_psnr(file_path):
@@ -24,7 +24,8 @@ def grid_search_median_mse_psnr(file_path):
 
     # Load the NIfTI file
     nii = load_nii(file_path)
-    original_data = get_data(nii)  # Extract data from the NIfTI object
+    resampled_data = resample_image(nii)
+    normalized_data = normalize_data(resampled_data)
 
     # Define parameter grid
     filter_size = [(3, 3, 3), (5, 5, 5), (3, 3, 7)]  # Neighborhood sizes (isotropic and anisotropic)
@@ -40,14 +41,11 @@ def grid_search_median_mse_psnr(file_path):
         try:
             print(f'Current combination: {combination_count + 1}/{len(param_grid)}')
             # Apply Median filtering
-            median_data = apply_median_filter(original_data, filter_size, mode=mode, cval=cval)
-            
-            # Match dimensions if necessary (in case of boundary effects)
-            median_data_matched = match_dimensions(original_data, median_data)
+            median_data = apply_median_filter(normalized_data, filter_size, mode=mode, cval=cval)
             
             # Calculate MSE and PSNR
-            mse = calculate_mse(original_data, median_data_matched)
-            psnr = calculate_psnr(original_data, median_data_matched, mse)
+            mse = calculate_mse(normalized_data, median_data)
+            psnr = calculate_psnr(normalized_data, median_data, mse)
 
             # Add result to the list of results
             results.append({

@@ -1,2 +1,2 @@
 wavelet,level,threshold,thresholding,mode,mse,psnr
-db1,2,0.01,hard,symmetric,3.63690580759495e-27,320.75719733842016
+coif1,2,0.01,hard,constant,6.788639193329067e-06,51.682172728416575
