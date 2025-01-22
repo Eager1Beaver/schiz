@@ -3,6 +3,7 @@ import nibabel as nib
 from typing import Union
 import matplotlib.pyplot as plt
 from src.utils.preprocess import get_data
+from skimage.filters import threshold_otsu
 from skimage.metrics import mean_squared_error
 from skimage.metrics import structural_similarity as ssim
 
@@ -22,8 +23,8 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
     Raises: ValueError: If the data is not 3D or `how_many` is invalid. 
     TypeError: If the input data is not a numpy array.
     """
-    #if not isinstance(data, np.ndarray) or not isinstance(data, nib.Nifti1Image): # Ensure data is a numpy array # 
-    #    raise TypeError(f"Input data must be a numpy array or a NIfTI image, got {type(data)}")
+    if not isinstance(data, np.ndarray) or not isinstance(data, nib.Nifti1Image): # Ensure data is a numpy array # 
+        raise TypeError(f"Input data must be a numpy array or a NIfTI image, got {type(data)}")
     
     if data.ndim!= 3: # Ensure data is 3 dimensional
         raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
@@ -63,7 +64,7 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")
     
-def calculate_snr(data: np.ndarray) -> float:
+def calculate_snr(data: np.ndarray, eps: float = 1e-6) -> float:
     """
     Calculate the Signal-to-Noise Ratio (SNR) of the MRI volume.
     
@@ -92,7 +93,110 @@ def calculate_snr(data: np.ndarray) -> float:
     if noise == 0: 
         raise ValueError("Standard deviation (noise) of the data is zero, SNR cannot be computed")
     
-    return signal / noise
+    return signal / max(noise, eps)
+
+def calculate_snr_background(data: np.ndarray, eps: float = 1e-6, threshold: float = 0.1) -> float:
+    """
+    Calculate SNR by estimating noise from low-intensity (background) voxels.
+    
+    Args:
+        data (np.ndarray): Normalized 3D MRI volume.
+        eps (float): Small value to prevent division by zero.
+        threshold (float): Intensity threshold for background noise.
+        
+    Returns:
+        float: SNR value.
+    """
+    background_noise = data[data < threshold * np.max(data)]
+    if len(background_noise) == 0:
+        raise ValueError("No background voxels found for noise estimation.")
+    
+    signal = np.mean(data)
+    noise = np.std(background_noise)
+    
+    if noise == 0:
+        raise ValueError("Standard deviation (noise) is zero, SNR cannot be computed.")
+    
+    return signal / max(noise, eps)
+
+def calculate_snr_refined(data: np.ndarray, eps: float = 1e-6, low_threshold: float = 0.1, high_threshold: float = 0.8) -> float:
+    """
+    Refine SNR calculation by excluding extremely low and high intensities.
+    
+    Args:
+        data (np.ndarray): Normalized 3D MRI volume.
+        eps (float): Small value to prevent division by zero.
+        low_threshold (float): Lower bound for noise estimation (default: 5% of max intensity).
+        high_threshold (float): Upper bound for signal estimation (default: 95% of max intensity).
+        
+    Returns:
+        float: SNR value.
+    """
+    # Define signal as values above high_threshold
+    signal_region = data[data > high_threshold * np.max(data)]
+    if len(signal_region) == 0:
+        raise ValueError("No signal region found for SNR calculation.")
+
+    signal = np.mean(signal_region)
+    #normalized_signal = signal / np.max(data)
+    
+    # Define noise as values below low_threshold
+    noise_region = data[data < low_threshold * np.max(data)]
+    if len(noise_region) == 0:
+        raise ValueError("No noise region found for SNR calculation.")
+    
+    noise = np.std(noise_region)
+    #normalized_noise = noise / np.max(data)
+    
+    if noise == 0:
+        raise ValueError("Noise standard deviation is zero, SNR cannot be computed.")
+    
+    return signal / max(noise, eps)
+
+def visualize_mask(data: np.ndarray, mask: np.ndarray, slice_index: int):
+    """
+    Visualize the original data and the generated mask for a specific slice.
+    """
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.title("Original Data")
+    plt.imshow(data[:, :, slice_index], cmap="gray")
+    
+    plt.subplot(1, 2, 2)
+    plt.title("Generated Mask")
+    plt.imshow(mask[:, :, slice_index], cmap="gray")
+    plt.show()
+
+def generate_brain_mask(data: np.ndarray, otsu_scaling: float = 0.8, min_intensity_factor: float = 0.1) -> np.ndarray:
+    """
+    Combine Otsu's thresholding with an intensity-based threshold for mask generation.
+    """
+    otsu_threshold = threshold_otsu(data[data > 0]) * otsu_scaling
+    intensity_threshold = min_intensity_factor * np.max(data)
+    combined_threshold = max(otsu_threshold, intensity_threshold)
+    return (data >= combined_threshold).astype(np.uint8)
+
+def calculate_snr_with_mask(data: np.ndarray, mask = None, eps: float = 1e-6) -> float:
+    """
+    Calculate the SNR using a mask to focus on the brain region.
+    
+    Args:
+        data (np.ndarray): Normalized 3D MRI volume.
+        eps (float): Small value to prevent division by zero.
+        
+    Returns:
+        float: SNR value.
+    """
+    if mask is None:
+        mask = generate_brain_mask(data)
+    #visualize_mask(data, mask, 130)
+    signal = np.mean(data[mask > 0])
+    noise = np.std(data[mask == 0])
+    
+    if noise == 0:
+        raise ValueError("Standard deviation (noise) is zero, SNR cannot be computed.")
+    
+    return signal / max(noise, eps)
 
 def calculate_mse(data1: np.ndarray, data2: np.ndarray) -> float:
     """
@@ -158,6 +262,121 @@ def calculate_psnr(data1: np.ndarray,
     
     psnr = 20 * np.log10(max_val / np.sqrt(mse))
     return psnr
+
+def calculate_relative_psnr(data: np.ndarray, max_intensity: float = None) -> float:
+    """
+    Calculate a relative PSNR using the maximum intensity value as the ideal reference.
+
+    Parameters:
+    - data (np.ndarray): 3D MRI volume.
+    - max_intensity (float, optional): Maximum intensity value to use as a reference. 
+                                       Defaults to the max value in the data.
+
+    Returns:
+    - float: Relative PSNR value.
+    """
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"Input must be a numpy array, got {type(data)}")
+    
+    if data.size == 0:
+        raise ValueError("Input image cannot be empty")
+    
+    if max_intensity is None:
+        max_intensity = data.max()
+    
+    mse = np.mean((data - max_intensity)**2)
+    if mse == 0:
+        raise ValueError("Mean Squared Error (MSE) is zero; PSNR cannot be computed")
+    
+    psnr = 20 * np.log10(max_intensity / np.sqrt(mse))
+    return psnr
+
+def calculate_relative_psnr2(data: np.ndarray, max_intensity: float = None, eps: float = 1e-6) -> float:
+    """
+    Calculate a relative PSNR based on the difference between signal and noise, 
+    with a focus on meaningful signal (brain regions in the case of MRI).
+    
+    Parameters:
+    - data (np.ndarray): 3D MRI volume (already normalized).
+    - max_intensity (float, optional): Maximum intensity value to use as a reference. Defaults to max value in the data.
+    - eps (float, optional): Small value to avoid division by zero errors.
+
+    Returns:
+    - float: Relative PSNR value.
+    """
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"Input must be a numpy array, got {type(data)}")
+    
+    if data.size == 0:
+        raise ValueError("Input image cannot be empty")
+    
+    if max_intensity is None:
+        max_intensity = data.max()
+
+    # Signal is calculated as the mean value of the data
+    signal = np.mean(data)
+
+    # Noise is the standard deviation of the data
+    noise = np.std(data)
+
+    if noise == 0:
+        raise ValueError("Noise (standard deviation) is zero; PSNR cannot be computed.")
+
+    # Compute Mean Squared Error (MSE) based on the signal and noise
+    mse = np.mean((data - signal)**2)
+
+    # PSNR calculation
+    psnr = 20 * np.log10(max_intensity / (np.sqrt(mse) + eps))  # Add eps to prevent log of zero
+
+    # Return PSNR value
+    return psnr
+
+def calculate_cnr(data: np.ndarray, mask: np.ndarray) -> float:
+    """
+    Calculate the Contrast-to-Noise Ratio (CNR) of the MRI volume.
+    
+    Args:
+        data (np.ndarray): Normalized 3D MRI volume.
+        mask (np.ndarray): Binary mask indicating the brain region (1 for brain, 0 for background).
+        
+    Returns:
+        float: CNR value.
+    """
+    # Signal: Mean intensity of the brain region (inside the mask)
+    signal = np.mean(data[mask > 0])
+    
+    # Background: Mean intensity of the non-brain region (outside the mask)
+    background = np.mean(data[mask == 0])
+    
+    # Noise: Standard deviation of the non-brain region (background)
+    noise = np.std(data[mask == 0])
+    
+    if noise == 0:
+        raise ValueError("Noise (standard deviation of the background) is zero, CNR cannot be computed.")
+    
+    cnr = np.abs(signal - background) / noise
+    return cnr
+
+def calculate_rmse(data: np.ndarray, max_intensity: float = None) -> float:
+    """
+    Calculate the Root Mean Square Error (RMSE) between the data and the reference (filled with max intensity).
+    
+    Args:
+        data (np.ndarray): 3D MRI volume (e.g., the actual image).
+        max_intensity (float): Maximum intensity for the reference.
+        
+    Returns:
+        float: RMSE value.
+    """
+    if max_intensity is None:
+        max_intensity = np.max(data)  # Use max intensity from data if not provided
+
+    # Create reference image filled with max_intensity
+    reference = np.full_like(data, max_intensity)
+    
+    # Compute RMSE
+    rmse = np.sqrt(np.mean((data - reference) ** 2))
+    return rmse
 
 def calculate_ssim(data1: np.ndarray, data2: np.ndarray) -> float:
     """
