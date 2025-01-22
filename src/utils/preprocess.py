@@ -133,17 +133,17 @@ def match_dimensions(original_image: np.ndarray, modified_image: np.ndarray) -> 
     matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
     return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
-def resample_image(nii: nib.Nifti1Image, 
+def resample_image(data: Union[nib.Nifti1Image, np.ndarray],
                    voxel_size: tuple=(1, 1, 1),
-                   order: int = 3,
-                   mode: str='constant',
+                   order: int = 1,
+                   mode: str='reflect',
                    cval: float=0.0,
                    output_format: str='numpy') -> Union[nib.Nifti1Image, np.ndarray]:
     """
     Resample a nifti image to a given voxel size
     
     Args:
-    nii: nib.Nifti1Image: nifti image object
+    data: Union[nib.Nifti1Image, np.ndarray]: nifti image object or numpy array
     voxel_size: tuple: voxel size for resampling
     output_format: str: output format, either 'nib' or 'numpy'
     
@@ -155,8 +155,8 @@ def resample_image(nii: nib.Nifti1Image,
     ValueError: If voxel_size or output_format are invalid
     RuntimeError: If resampling fails
     """
-    if not isinstance(nii, nib.Nifti1Image): # Ensure the image is a nibabel Nifti1Image
-        raise TypeError(f"Expected nib.Nifti1Image, got {type(nii)}")
+    if not isinstance(data, nib.Nifti1Image) or not isinstance(data, np.ndarray): # Ensure the image is a nibabel Nifti1Image
+        raise TypeError(f"Expected nib.Nifti1Image, got {type(data)}")
 
     if not isinstance(voxel_size, tuple) or len(voxel_size) != 3:
         raise ValueError(f"voxel_size must be a tuple of length 3, got {voxel_size}")
@@ -168,7 +168,10 @@ def resample_image(nii: nib.Nifti1Image,
         raise TypeError(f"output_format must be a string, got {type(output_format)}")
 
     try:
-        resampled = resample_to_output(nii, voxel_sizes=voxel_size, order=order, mode=mode, cval=cval)
+        if isinstance(data, np.ndarray):
+            # Convert numpy array to nibabel Nifti1Image
+            data = nib.Nifti1Image(data, get_affine(data))
+        resampled = resample_to_output(data, voxel_sizes=voxel_size, order=order, mode=mode, cval=cval)
     except Exception as e:
         raise RuntimeError(f"Resampling failed: {str(e)}")
 
@@ -184,13 +187,19 @@ def resample_image(nii: nib.Nifti1Image,
     
 def normalize_data(data: np.ndarray, 
                    method: str = "min-max",
+                   min_val = 0, 
+                   max_val = 1,
                    eps: float = 1e-8) -> np.ndarray:
     """
-    Normalize the data using z-score or min-max method
-    f
+    Normalize the data using z-score or min-max method 
+    In case of min-max method, normalize the intensity values 
+    of all scans to a consistent range (e.g., [0, 1] or [0, 255])
+    
     Args:
     data: np.ndarray: data to be normalized
     method: str: normalization method, either "z-score" or "min-max"
+    min_val: (float): Minimum value of the target range.
+    max_val: (float): Maximum value of the target range.
     eps: float: a small constant to avoid division by zero
 
     Returns:
@@ -214,11 +223,14 @@ def normalize_data(data: np.ndarray,
             return (data - mean) / std
         
         elif method =='min-max':
-            min_value = np.min(data)
-            delta_value = np.max(data) - min_value
-            if delta_value == 0:
+            min_data_value = np.min(data)
+            max_data_value = np.max(data)
+            delta_data_value = max_data_value - min_data_value
+
+            if delta_data_value == 0:
                 raise ZeroDivisionError("No variation in the data. Cannot perform min-max normalization")
-            return (data - min_value) / (delta_value + eps) # TODO: deprecate eps?
+            
+            return ((data - min_data_value) / (delta_data_value + eps)) * (max_val - min_val) + min_val
         
         else:
             raise ValueError("Invalid normalization method. Choose 'z-score' or 'min-max'.")
