@@ -4,10 +4,10 @@ import itertools
 import pandas as pd
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from src.utils.preprocess import load_nii, resample_image
-from src.utils.preprocess_validation import calculate_snr
+from src.utils.preprocess_validation import calculate_snr_with_mask
 
 def grid_search_resample_snr(file_path):
     """
@@ -33,15 +33,18 @@ def grid_search_resample_snr(file_path):
     param_grid = list(itertools.product(orders, modes, cvals))
     results = []
 
+    combination_count = 0
     # Iterate through parameter combinations
     for order, mode, cval in param_grid:
         try:
+            print(f'Current combination count: {combination_count}/{len(param_grid)}')
             # Resample the image
             resampled_data = resample_image(nii, voxel_size=voxel_size, order=order, mode=mode, cval=cval, output_format='numpy')
 
             # Calculate SNR
-            snr = calculate_snr(resampled_data)
+            snr = calculate_snr_with_mask(resampled_data)
             results.append({'order': order, 'mode': mode, 'cval': cval, 'snr': snr})
+            combination_count += 1
         except Exception as e:
             # Handle any errors during resampling or SNR calculation
             print(f"Error with combination (order={order}, mode={mode}, cval={cval}): {str(e)}")
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     # Get the current working directory of the script 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    file_path = os.path.join(current_dir, '..', '..', rel_file_path)
+    file_path = os.path.join(current_dir, '..', '..', '..', rel_file_path)
 
     #file_path = "../../data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
 

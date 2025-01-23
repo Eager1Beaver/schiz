@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.utils.preprocess import load_nii, get_data, normalize_data
-from src.utils.preprocess_validation import calculate_snr, calculate_mse, calculate_psnr, calculate_ssim
+from src.utils.preprocess_validation import calculate_snr_with_mask, calculate_mse, calculate_psnr, calculate_ssim
 
 def evaluate_normalization_methods(original_data: np.ndarray, 
                                    output_file_name: str):
@@ -30,7 +30,7 @@ def evaluate_normalization_methods(original_data: np.ndarray,
             normalized_data = normalize_data(original_data, method=method)
             
             # Compute metrics
-            snr_value = calculate_snr(normalized_data)
+            snr_value = calculate_snr_with_mask(normalized_data)
             mse_value = calculate_mse(original_data, normalized_data)
             psnr_value = calculate_psnr(original_data, normalized_data, mse=mse_value)
             ssim_value = calculate_ssim(original_data, normalized_data)
