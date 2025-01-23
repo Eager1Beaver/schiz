@@ -3,11 +3,11 @@ import sys
 from pathlib import Path
 
 # Add the root directory to sys.path
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+#sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 
-from utils.preprocess import load_nii
-from utils.preprocess_validation import plot_slices
+from src.utils.preprocess import load_nii
+from src.utils.preprocess_validation import plot_slices
 
 """
 Results:
