@@ -189,7 +189,7 @@ def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
 def normalize_data(data: np.ndarray, 
                    method: str = "min-max",
                    min_val = 0, 
-                   max_val = 255,
+                   max_val = 1,
                    eps: float = 1e-8) -> np.ndarray:
     """
     Normalize the data using z-score or min-max method 
@@ -500,7 +500,7 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
 
 
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_gaussian_smoothing(data, sigma=1.0, order=2, mode='constant', cval=0.0, truncate=3.0):
+def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
     I understand you’ve been needing space, and I really appreciate you letting me know 
@@ -534,8 +534,8 @@ def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
 # Method 3: Wavelet denoising for smoothing
 
 #import pywt
-def apply_wavelet_denoising(data, wavelet='coif1', level=4, threshold=0.05, 
-                            thresholding='hard', mode='constant'):
+def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05, 
+                            thresholding='hard', mode='reflect'):
     """
     Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
     
