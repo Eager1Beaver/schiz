@@ -135,8 +135,8 @@ def match_dimensions(original_image: np.ndarray, modified_image: np.ndarray) -> 
     return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
 def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
-                   voxel_size: tuple=(1, 1, 1),
-                   order: int = 1,
+                   voxel_size: tuple=(2, 2, 2),
+                   order: int = 4,
                    mode: str='reflect',
                    cval: float=0.0,
                    output_format: str='numpy') -> Union[nib.Nifti1Image, np.ndarray]:
@@ -189,7 +189,7 @@ def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
 def normalize_data(data: np.ndarray, 
                    method: str = "min-max",
                    min_val = 0, 
-                   max_val = 1,
+                   max_val = 255,
                    eps: float = 1e-8) -> np.ndarray:
     """
     Normalize the data using z-score or min-max method 
