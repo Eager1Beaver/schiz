@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.utils.preprocess import load_nii, get_data, normalize_data
+from src.utils.preprocess import load_nii, get_data, resample_image, normalize_data
 from src.utils.preprocess_validation import calculate_snr_with_mask, calculate_mse, calculate_psnr, calculate_ssim
 
-def evaluate_normalization_methods(original_data: np.ndarray, 
+def evaluate_normalization_methods(original_data, 
                                    output_file_name: str):
     """
     Evaluate normalization methods (min-max and z-score) using metrics and save results to a CSV file.
@@ -27,13 +27,15 @@ def evaluate_normalization_methods(original_data: np.ndarray,
     for method in normalization_methods:
         try:
             # Normalize data
-            normalized_data = normalize_data(original_data, method=method)
+            resampled_data = resample_image(original_data)
+            initial_data = resampled_data
+            normalized_data = normalize_data(initial_data, method=method)
             
             # Compute metrics
             snr_value = calculate_snr_with_mask(normalized_data)
-            mse_value = calculate_mse(original_data, normalized_data)
-            psnr_value = calculate_psnr(original_data, normalized_data, mse=mse_value)
-            ssim_value = calculate_ssim(original_data, normalized_data)
+            mse_value = calculate_mse(initial_data, normalized_data)
+            psnr_value = calculate_psnr(initial_data, normalized_data, mse=mse_value)
+            ssim_value = calculate_ssim(initial_data, normalized_data)
 
             # Append results
             metrics_results.append({
@@ -61,14 +63,15 @@ if __name__ == "__main__":
     # Get the current working directory of the script 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    file_path = os.path.join(current_dir, '..', rel_file_path)
+    file_path = os.path.join(current_dir, '..', "..", rel_file_path)
 
     # Load a sample file
     nii = load_nii(file_path)
-    original_data = get_data(nii)
+    #original_data = get_data(nii)
+    original_data = nii
 
     # Evaluate normalization methods and save to CSV
-    output_file = "normalize_data_comparison.csv"
+    output_file = "normalize_data_comparison_0-255_with_voxel_222.csv"
     results_df = evaluate_normalization_methods(original_data, output_file)
 
     # Print results

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from src.utils.preprocess import load_nii, get_data, resample_image, match_dimensions
 from src.utils.preprocess_validation import calculate_mse, calculate_psnr
@@ -29,7 +29,7 @@ def grid_search_resample_mse_psnr(file_path):
     orders = range(0, 6)  # Spline interpolation orders
     modes = ['constant', 'nearest', 'reflect', 'wrap']  # Boundary handling modes
     cvals = [0.0, 0.5, 1.0]  # Constant fill values
-    voxel_size = (1, 1, 1)  # Fixed for this example
+    voxel_size = (2, 2, 2)  # Fixed for this example
 
     # Create all parameter combinations
     param_grid = list(itertools.product(orders, modes, cvals))
@@ -51,7 +51,7 @@ def grid_search_resample_mse_psnr(file_path):
             #print('psnr here')
 
             # Add result to the list of results
-            results.append({'order': order, 'mode': mode, 'cval': cval, 'mse': mse, 'psnr': psnr})
+            results.append({'voxel_size': voxel_size,'order': order, 'mode': mode, 'cval': cval, 'mse': mse, 'psnr': psnr})
             combination_count += 1
         except Exception as e:
             # Handle any errors during resampling or SNR calculation
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # Get the current working directory of the script 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     rel_file_path = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
-    file_path = os.path.join(current_dir, '..', '..', rel_file_path)
+    file_path = os.path.join(current_dir, '..', '..', "..", rel_file_path)
 
     #file_path = "../../data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
 

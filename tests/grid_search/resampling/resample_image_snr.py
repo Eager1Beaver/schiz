@@ -27,7 +27,7 @@ def grid_search_resample_snr(file_path):
     orders = range(0, 6)  # Spline interpolation orders
     modes = ['constant', 'nearest', 'reflect', 'wrap']  # Boundary handling modes
     cvals = [0.0, 0.5, 1.0]  # Constant fill values
-    voxel_size = (1, 1, 1)  # Fixed for this example
+    voxel_size = (2, 2, 2)  # Fixed for this example
 
     # Create all parameter combinations
     param_grid = list(itertools.product(orders, modes, cvals))
@@ -43,7 +43,7 @@ def grid_search_resample_snr(file_path):
 
             # Calculate SNR
             snr = calculate_snr_with_mask(resampled_data)
-            results.append({'order': order, 'mode': mode, 'cval': cval, 'snr': snr})
+            results.append({'voxel_size': voxel_size, 'order': order, 'mode': mode, 'cval': cval, 'snr': snr})
             combination_count += 1
         except Exception as e:
             # Handle any errors during resampling or SNR calculation
