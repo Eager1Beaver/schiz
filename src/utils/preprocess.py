@@ -374,57 +374,8 @@ def crop_to_largest_bounding_box(data: np.ndarray,
     return cropped_slices
 
 # TODO: test different smoothing methods, choose the most optimal?
-def smooth_gaussian(data: np.ndarray, 
-                    sigma: float = 1.0) -> np.ndarray:
-    """
-    Smooth the image using gaussian filter
-    
-    Args:
-    data: np.ndarray: image data
-    sigma: float: standard deviation for gaussian filter
 
-    Returns:
-    np.ndarray: smoothed image data
-    """
-    return gaussian_filter(data, sigma=sigma)
-
-def smooth_nibabel(nii: nib.Nifti1Image, 
-                   sigma: float = 1.0) -> nib.Nifti1Image:
-    """
-    Smooth the image using nibabel smooth
-    
-    Args:
-    nii: nib.Nifti1Image: nifti image object
-    sigma: float: standard deviation for gaussian filter
-    
-    Returns:
-    nib.Nifti1Image: smoothed nifti image object
-    """
-    smoothed = smooth_image(nii, sigma=sigma)
-    return smoothed
-
-def smooth_wavelet_denoise(data: np.ndarray, 
-                           wavelet: str = 'db1', 
-                           mode: str = 'soft', 
-                           threshold=None) -> np.ndarray:
-    """
-    Smooth the image using wavelet denoising
-    
-    Args:
-    data: np.ndarray: image data
-    wavelet: str: wavelet type
-    mode: str: thresholding mode
-    threshold: float: threshold value
-    
-    Returns:
-    np.ndarray: smoothed image data
-    """
-    coeffs = pywt.wavedecn(data, wavelet=wavelet)
-    threshold = threshold or (0.1 * np.max(data))
-    denoised_coeffs = pywt.threshold(coeffs, threshold, mode=mode)
-    return pywt.waverecn(denoised_coeffs, wavelet=wavelet)
-
-# TODO: probably to be deprecated 
+# TODO: probably to be deprecated
 # because a conversion from a numpy array to a torch tensor is handled by the data_loader
 # if the data augmentation is performed (it is performed on training data),
 # then a numpy array is converted to a torch tensor during data augmentation step 
@@ -498,13 +449,10 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
     
     return smoothed
 
-
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
 def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
-    I understand you’ve been needing space, and I really appreciate you letting me know 
-Just know I’m always here if you ever need someone to talk to or lean on
     Args:
         data (numpy.ndarray): 3D MRI data.
         sigma (float): Standard deviation of the Gaussian kernel.
@@ -516,7 +464,6 @@ Just know I’m always here if you ever need someone to talk to or lean on
     return smoothed_data
 
 # Method 2: Median filtering for smoothing
-
 def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
     """
     Apply median filtering to a 3D MRI image.
@@ -530,10 +477,7 @@ def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
     """
     return median_filter(data, size=filter_size, mode=mode, cval=cval)
 
-
 # Method 3: Wavelet denoising for smoothing
-
-#import pywt
 def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05, 
                             thresholding='hard', mode='reflect'):
     """
