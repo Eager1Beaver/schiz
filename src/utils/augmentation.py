@@ -17,7 +17,7 @@ from torchvision import transforms
 # - Random intensity shift (useful for handling variations in scanner settings)
 #   - Random brightness or random gamma
 #   - Gaussian noise (useful to simulate variations and imperfections in the data)
-# - Elastic deformation (useful to simulate local deformations in the brain)
+# - Elastic deformation (useful to simulate local deformations in the brain) TODO: add this?
 # - Cropping and resizing
 
 class AddGaussianNoise:
@@ -70,7 +70,7 @@ def get_augmentation():
                                 scale=(0.9, 1.1),
                                 shear=10
                                 ),
-        AdjustContrast3D(contrast_factor=0.1),
+        AdjustContrast3D(contrast_factor=0.1), # TODO: deprecate?
         AddGaussianNoise(mean=0, std=0.01),
         RandomIntensityShift(shift_range=0.1),
         transforms.Normalize(mean=[0.5], std=[0.5]) # previously normalized data to [0, 1]                        

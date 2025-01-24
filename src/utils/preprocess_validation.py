@@ -292,7 +292,7 @@ def calculate_relative_psnr(data: np.ndarray, max_intensity: float = None) -> fl
     if max_intensity is None:
         max_intensity = data.max()
     
-    mse = np.mean((data - max_intensity)**2)
+    mse = np.mean((data - data.mean())**2) # max_intensity
     if mse == 0:
         raise ValueError("Mean Squared Error (MSE) is zero; PSNR cannot be computed")
     
@@ -350,6 +350,10 @@ def calculate_cnr(data: np.ndarray, mask: np.ndarray) -> float:
     Returns:
         float: CNR value.
     """
+    
+    if mask is None:
+        mask = generate_signal_mask(data)
+
     # Signal: Mean intensity of the brain region (inside the mask)
     signal = np.mean(data[mask > 0])
     

@@ -10,6 +10,7 @@ from nibabel.processing import smooth_image
 from nibabel.processing import resample_to_output 
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
+from scipy.ndimage import binary_closing, binary_opening
 from skimage.filters import threshold_otsu
 
 """
@@ -237,6 +238,11 @@ def normalize_data(data: np.ndarray,
 
     except Exception as e:
         raise RuntimeError(f"An error occurred while normalizing the data: {str(e)}")
+
+def refine_brain_mask(mask, structure=None): # TODO: integrate into pipeline
+    closed = binary_closing(mask, structure=structure)
+    opened = binary_opening(closed, structure=structure)
+    return opened
 
 def extract_brain(data: np.ndarray,
                   modality: str = 't1',
