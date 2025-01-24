@@ -500,7 +500,7 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
 
 
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_gaussian_smoothing(data, sigma, order, mode, cval, truncate):
+def apply_gaussian_smoothing(data, sigma=1.0, order=2, mode='constant', cval=0.0, truncate=3.0):
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
     I understand you’ve been needing space, and I really appreciate you letting me know 
@@ -517,7 +517,7 @@ Just know I’m always here if you ever need someone to talk to or lean on
 
 # Method 2: Median filtering for smoothing
 
-def apply_median_filter(data, filter_size, mode, cval):
+def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
     """
     Apply median filtering to a 3D MRI image.
 
@@ -534,8 +534,8 @@ def apply_median_filter(data, filter_size, mode, cval):
 # Method 3: Wavelet denoising for smoothing
 
 #import pywt
-def apply_wavelet_denoising(data, wavelet='sym4', level=3, threshold=0.03, 
-                            thresholding='soft', mode='symmetric'):
+def apply_wavelet_denoising(data, wavelet='coif1', level=4, threshold=0.05, 
+                            thresholding='hard', mode='constant'):
     """
     Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
     
