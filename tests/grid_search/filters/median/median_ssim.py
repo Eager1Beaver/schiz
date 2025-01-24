@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 from src.utils.preprocess import load_nii, resample_image, normalize_data, apply_median_filter
 from src.utils.preprocess_validation import calculate_ssim
@@ -44,8 +44,10 @@ def grid_search_median_ssim(file_path):
             # Apply Median filtering
             median_data = apply_median_filter(normalized_data, filter_size, mode=mode, cval=cval)
             
+            final_data = normalize_data(median_data)
+
             # Calculate SSIM
-            ssim_val = calculate_ssim(normalized_data, median_data)
+            ssim_val = calculate_ssim(normalized_data, final_data)
 
             # Add result to the list of results
             results.append({

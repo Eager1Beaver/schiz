@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 from src.utils.preprocess import load_nii, resample_image, normalize_data, apply_gaussian_smoothing
 from src.utils.preprocess_validation import calculate_mse, calculate_psnr
@@ -46,9 +46,11 @@ def grid_search_smoothing_mse_psnr(file_path):
             # Apply Gaussian smoothing
             smoothed_data = apply_gaussian_smoothing(normalized_data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
             
+            final_data = normalize_data(smoothed_data)
+
             # Calculate MSE and PSNR
-            mse = calculate_mse(normalized_data, smoothed_data)
-            psnr = calculate_psnr(normalized_data, smoothed_data, mse)
+            mse = calculate_mse(normalized_data, final_data)
+            psnr = calculate_psnr(normalized_data, final_data, mse)
 
             # Add result to the list of results
             results.append({

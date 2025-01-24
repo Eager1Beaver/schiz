@@ -1,2 +1,2 @@
 wavelet,level,threshold,thresholding,mode,snr
-db1,2,0.01,soft,symmetric,10.573697495349306
+coif1,4,0.05,hard,constant,12.75658506883691
