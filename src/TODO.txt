@@ -1,0 +1,20 @@
+TODO: calculate SNR for raw scans (after resampling and normalization), get stats
+
+
+
+
+
+
+
+
+
+Automating Validation
+Create a validation pipeline to automate the checks:
+Run visualizations.
+Calculate metrics.
+Log results.
+Integrate into preprocessing script to ensure reproducibility.
+
+
+
+Integrate TorchIO
