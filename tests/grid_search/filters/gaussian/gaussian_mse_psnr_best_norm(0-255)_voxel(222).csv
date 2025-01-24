@@ -1,0 +1,2 @@
+sigma,truncate,mode,cval,order,mse,psnr
+0.5,2.0,constant,0.0,0,98.0671567416942,28.215567768605187
