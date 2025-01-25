@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Add the root directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.utils.preprocess import load_nii, get_data, resample_image, normalize_data, extract_brain
 from src.utils.preprocess_validation import calculate_snr_with_mask, calculate_mse, calculate_psnr, calculate_ssim
@@ -162,10 +162,10 @@ if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
     rel_file_path_t1 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz"
     rel_file_path_t2 = "data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_T2w.nii.gz"
-    file_path = os.path.join(current_dir, '..', rel_file_path_t2)    
+    file_path = os.path.join(current_dir, '..', "..", rel_file_path_t1)    
     
     #modalities = ['t1', 't2']
-    modalities = ['t2']
+    modalities = ['t1']
 
     do_preprocess = True
     plot_extraction_result = False

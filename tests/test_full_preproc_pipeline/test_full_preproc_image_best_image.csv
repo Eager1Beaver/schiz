@@ -1,0 +1,2 @@
+path,snr,cnr,mse,psnr,ssim,relative_psnr,relative_rmse
+data/schizconnect_COBRE_images_22613/COBRE/sub-A00000300/ses-20110101/anat/sub-A00000300_ses-20110101_acq-mprage_run-01_T1w.nii.gz,59.108433,53.754646,10722.46157727776,16.061572885589214,0.2805368490426015,16.759778261184692,0.08655645
