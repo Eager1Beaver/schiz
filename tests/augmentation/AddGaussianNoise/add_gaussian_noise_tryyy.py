@@ -35,9 +35,13 @@ def complete_preprocess(file_path: str):
     loaded_nii = load_nii(file_path)
     resampled_data = resample_image(loaded_nii)
     normalized_data = normalize_data(resampled_data)
+
     extracted_data = extract_brain(normalized_data)
-    largest_slice = get_largest_brain_mask_slice(extracted_data)
-    cropped_data = crop_to_largest_bounding_box(largest_slice)
+    brain_image = extracted_data['extracted_brain']
+    brain_mask = extracted_data['mask']
+
+    binary_mask, largest_slice_index = get_largest_brain_mask_slice(brain_mask)
+    cropped_data = crop_to_largest_bounding_box(brain_image, binary_mask, largest_slice_index)
     smoothed_data = apply_gaussian_smoothing(cropped_data)
 
     # Define parameter grid
