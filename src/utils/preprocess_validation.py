@@ -10,7 +10,8 @@ from skimage.metrics import structural_similarity as ssim
 def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Image support, redo docs // 
                 how_many: int = 4,
                 title: str = "",
-                axes: list = None) -> None:
+                axes: list = None,
+                isSave_fig: bool = False) -> None:
     """
     Plot 4 evenly spaced slices along the z-axis (axis 2) of the MRI volume (excluding the edge cases).
     Plot slices on provided axes or create a new figure if axes are not provided.
@@ -60,6 +61,8 @@ def plot_slices(data: Union[np.ndarray, nib.Nifti1Image], # TODO: added Nifti1Im
         if own_axes:
             fig.suptitle(title)
             plt.show()
+            if isSave_fig:
+                fig.savefig("slices.pdf")
 
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {e}")

@@ -373,58 +373,78 @@ def crop_to_largest_bounding_box(data: np.ndarray,
 
     return cropped_slices
 
-# TODO: test different smoothing methods, choose the most optimal?
-def smooth_gaussian(data: np.ndarray, 
-                    sigma: float = 1.0) -> np.ndarray:
+# Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
+def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
     """
-    Smooth the image using gaussian filter
-    
+    Apply Gaussian smoothing to the data to reduce noise and artifacts.
     Args:
-    data: np.ndarray: image data
-    sigma: float: standard deviation for gaussian filter
+        data (numpy.ndarray): 3D MRI data.
+        sigma (float): Standard deviation of the Gaussian kernel.
+        
+    Returns:
+        smoothed_data (numpy.ndarray): Smoothed 3D MRI data.
+    """
+    smoothed_data = gaussian_filter(data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
+    return smoothed_data
+
+# Method 2: Median filtering for smoothing
+def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
+    """
+    Apply median filtering to a 3D MRI image.
+
+    Args:
+        data (numpy.ndarray): Input 3D MRI image.
+        filter_size (int): Size of the neighborhood for median filtering.
 
     Returns:
-    np.ndarray: smoothed image data
+        numpy.ndarray: Median-filtered MRI image.
     """
-    return gaussian_filter(data, sigma=sigma)
+    return median_filter(data, size=filter_size, mode=mode, cval=cval)
 
-def smooth_nibabel(nii: nib.Nifti1Image, 
-                   sigma: float = 1.0) -> nib.Nifti1Image:
+# Method 3: Wavelet denoising for smoothing
+def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05, 
+                            thresholding='hard', mode='reflect'):
     """
-    Smooth the image using nibabel smooth
+    Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
     
     Args:
-    nii: nib.Nifti1Image: nifti image object
-    sigma: float: standard deviation for gaussian filter
+        data (numpy.ndarray): Input 3D MRI image.
+        wavelet (str): Wavelet type (e.g., 'db1', 'sym4').
+        level (int): Level of wavelet decomposition.
+        threshold (float): Threshold value for soft or hard thresholding.
+        thresholding (str): Type of thresholding ('soft' or 'hard').
+        mode (str): Boundary handling mode (e.g., 'symmetric', 'constant').
     
     Returns:
-    nib.Nifti1Image: smoothed nifti image object
+        numpy.ndarray: Denoised 3D MRI image.
     """
-    smoothed = smooth_image(nii, sigma=sigma)
-    return smoothed
-
-def smooth_wavelet_denoise(data: np.ndarray, 
-                           wavelet: str = 'db1', 
-                           mode: str = 'soft', 
-                           threshold=None) -> np.ndarray:
-    """
-    Smooth the image using wavelet denoising
+    denoised_slices = []
     
-    Args:
-    data: np.ndarray: image data
-    wavelet: str: wavelet type
-    mode: str: thresholding mode
-    threshold: float: threshold value
+    for slice_idx in range(data.shape[2]):
+        slice_data = data[:, :, slice_idx]
+        
+        # Perform 2D wavelet decomposition
+        coeffs2 = pywt.wavedec2(slice_data, wavelet, mode=mode, level=level)
+        
+        # Apply soft or hard thresholding to detail coefficients
+        thresholded_coeffs = [
+            tuple(pywt.threshold(c, threshold, mode=thresholding) for c in detail) 
+            for detail in coeffs2[1:]
+        ]
+        
+        # Reconstruct the slice with thresholded coefficients
+        coeffs2[1:] = thresholded_coeffs
+        denoised_slice = pywt.waverec2(coeffs2, wavelet, mode=mode)
+        
+        # Ensure the reconstructed slice has the same shape as the input
+        denoised_slice = denoised_slice[:slice_data.shape[0], :slice_data.shape[1]]
+        denoised_slices.append(denoised_slice)
     
-    Returns:
-    np.ndarray: smoothed image data
-    """
-    coeffs = pywt.wavedecn(data, wavelet=wavelet)
-    threshold = threshold or (0.1 * np.max(data))
-    denoised_coeffs = pywt.threshold(coeffs, threshold, mode=mode)
-    return pywt.waverecn(denoised_coeffs, wavelet=wavelet)
+    # Stack slices back into a 3D array
+    denoised_image = np.stack(denoised_slices, axis=2)
+    return denoised_image
 
-# TODO: probably to be deprecated 
+# TODO: probably to be deprecated
 # because a conversion from a numpy array to a torch tensor is handled by the data_loader
 # if the data augmentation is performed (it is performed on training data),
 # then a numpy array is converted to a torch tensor during data augmentation step 
@@ -441,7 +461,7 @@ def to_tensor(data: np.ndarray) -> torch.Tensor:
     """
     return torch.tensor(data, dtype=torch.float32)
 
-def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
+def preprocess_image(image: nib.Nifti1Image) -> np.ndarray: # TODO: change!
     """
     Preprocess the image using the following steps:
     - Get the data
@@ -492,86 +512,8 @@ def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
 
     try:
         # Smoothing
-        smoothed = smooth_gaussian(cropped) # TODO: fix smoothing
+        smoothed = apply_gaussian_smoothing(cropped) # TODO: fix smoothing
     except Exception as e:
         raise RuntimeError(f"Smoothing failed: {str(e)}")
     
     return smoothed
-
-
-# Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
-    """
-    Apply Gaussian smoothing to the data to reduce noise and artifacts.
-    I understand you’ve been needing space, and I really appreciate you letting me know 
-Just know I’m always here if you ever need someone to talk to or lean on
-    Args:
-        data (numpy.ndarray): 3D MRI data.
-        sigma (float): Standard deviation of the Gaussian kernel.
-        
-    Returns:
-        smoothed_data (numpy.ndarray): Smoothed 3D MRI data.
-    """
-    smoothed_data = gaussian_filter(data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
-    return smoothed_data
-
-# Method 2: Median filtering for smoothing
-
-def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
-    """
-    Apply median filtering to a 3D MRI image.
-
-    Args:
-        data (numpy.ndarray): Input 3D MRI image.
-        filter_size (int): Size of the neighborhood for median filtering.
-
-    Returns:
-        numpy.ndarray: Median-filtered MRI image.
-    """
-    return median_filter(data, size=filter_size, mode=mode, cval=cval)
-
-
-# Method 3: Wavelet denoising for smoothing
-
-#import pywt
-def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05, 
-                            thresholding='hard', mode='reflect'):
-    """
-    Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
-    
-    Args:
-        data (numpy.ndarray): Input 3D MRI image.
-        wavelet (str): Wavelet type (e.g., 'db1', 'sym4').
-        level (int): Level of wavelet decomposition.
-        threshold (float): Threshold value for soft or hard thresholding.
-        thresholding (str): Type of thresholding ('soft' or 'hard').
-        mode (str): Boundary handling mode (e.g., 'symmetric', 'constant').
-    
-    Returns:
-        numpy.ndarray: Denoised 3D MRI image.
-    """
-    denoised_slices = []
-    
-    for slice_idx in range(data.shape[2]):
-        slice_data = data[:, :, slice_idx]
-        
-        # Perform 2D wavelet decomposition
-        coeffs2 = pywt.wavedec2(slice_data, wavelet, mode=mode, level=level)
-        
-        # Apply soft or hard thresholding to detail coefficients
-        thresholded_coeffs = [
-            tuple(pywt.threshold(c, threshold, mode=thresholding) for c in detail) 
-            for detail in coeffs2[1:]
-        ]
-        
-        # Reconstruct the slice with thresholded coefficients
-        coeffs2[1:] = thresholded_coeffs
-        denoised_slice = pywt.waverec2(coeffs2, wavelet, mode=mode)
-        
-        # Ensure the reconstructed slice has the same shape as the input
-        denoised_slice = denoised_slice[:slice_data.shape[0], :slice_data.shape[1]]
-        denoised_slices.append(denoised_slice)
-    
-    # Stack slices back into a 3D array
-    denoised_image = np.stack(denoised_slices, axis=2)
-    return denoised_image
