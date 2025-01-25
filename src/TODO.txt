@@ -1,4 +1,4 @@
-TODO: calculate SNR for raw scans (after resampling and normalization), get stats
+TODO: calculate metrics for each slice in a volume
 
 
 
