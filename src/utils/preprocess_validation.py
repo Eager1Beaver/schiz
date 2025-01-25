@@ -342,7 +342,7 @@ def calculate_relative_psnr2(data: np.ndarray, max_intensity: float = None, eps:
     # Return PSNR value
     return psnr
 
-def calculate_cnr(data: np.ndarray, mask: np.ndarray) -> float:
+def calculate_cnr(data: np.ndarray, mask: np.ndarray = None) -> float:
     """
     Calculate the Contrast-to-Noise Ratio (CNR) of the MRI volume.
     

@@ -6,7 +6,6 @@ import antspynet
 import numpy as np
 from typing import Union
 import nibabel as nib
-from nibabel.processing import smooth_image
 from nibabel.processing import resample_to_output 
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
@@ -347,8 +346,9 @@ def get_largest_brain_mask_slice(mask: np.ndarray) -> tuple[np.ndarray, int]:
 
 # Crop all the slices using the dimension or bounding box of the largest brain area
 def crop_to_largest_bounding_box(data: np.ndarray, 
-                                 binary_mask: np.ndarray, 
-                                 largest_slice_idx: int) -> np.ndarray:
+                                 processed_mask: np.ndarray = None, 
+                                 largest_slice_idx: int = None,
+                                 mask: np.ndarray = None) -> np.ndarray:
     """
     Crop all slices to the bounding box of the largest brain area.
     
@@ -360,8 +360,11 @@ def crop_to_largest_bounding_box(data: np.ndarray,
     Returns:
     - cropped_data: numpy array, cropped 3D MRI data
     """
+    if processed_mask is None or largest_slice_idx is None:
+        processed_mask, largest_slice_idx = get_largest_brain_mask_slice(mask)
+
     # Extract the mask of the slice with the largest brain area
-    largest_slice_mask = binary_mask[:, :, largest_slice_idx]
+    largest_slice_mask = processed_mask[:, :, largest_slice_idx]
 
     # Find the bounding box of the largest slice
     coords = np.argwhere(largest_slice_mask > 0)
