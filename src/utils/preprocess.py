@@ -373,82 +373,6 @@ def crop_to_largest_bounding_box(data: np.ndarray,
 
     return cropped_slices
 
-# TODO: test different smoothing methods, choose the most optimal?
-
-# TODO: probably to be deprecated
-# because a conversion from a numpy array to a torch tensor is handled by the data_loader
-# if the data augmentation is performed (it is performed on training data),
-# then a numpy array is converted to a torch tensor during data augmentation step 
-# otherwise it is converted by __getitem__ of the MRIDataset class
-def to_tensor(data: np.ndarray) -> torch.Tensor:
-    """
-    Convert numpy array to PyTorch tensor
-    
-    Args:
-    data: np.ndarray: numpy array
-    
-    Returns:
-    torch.Tensor: PyTorch tensor
-    """
-    return torch.tensor(data, dtype=torch.float32)
-
-def preprocess_image(image: nib.Nifti1Image) -> np.ndarray:
-    """
-    Preprocess the image using the following steps:
-    - Get the data
-    - Normalize the data
-    - Extract
-    - Crop
-    - Smooth
-
-    Args:
-    image: nib.Nifti1Image: nifti image object
-
-    Returns:
-    np.ndarray: preprocessed image data
-
-    Raises: TypeError: If the input image is not an instance of nib.Nifti1Image 
-    ValueError: For any processing step failures
-    """
-    if not isinstance(image, nib.Nifti1Image): # Ensure the image is a nibabel Nifti1Image
-        raise TypeError(f"Expected nib.Nifti1Image, got {type(image)}")
-    
-    #data = get_data(image) # TODO: to be deprecated
-    # # loading a .nii file instead 
-    # and resample_image returns a np.ndarray for further processing steps
-
-    try:
-        # Resampling
-        resampled = resample_image(image)
-    except Exception as e:    
-        raise RuntimeError(f"Resampling failed: {str(e)}")
-
-    try:    
-        # Normalization
-        normalized = normalize_data(resampled)
-    except Exception as e:
-        raise RuntimeError(f"Normalization failed: {str(e)}")
-    
-    try:
-        # Brain extraction
-        extracted = extract_brain(normalized)
-    except Exception as e:
-        raise RuntimeError(f"Brain extraction failed: {str(e)}")
-
-    try:
-        # Cropping
-        cropped = crop_to_largest_bounding_box(extracted) # TODO: fix cropping
-    except Exception as e:
-        raise RuntimeError(f"Cropping failed: {str(e)}")
-
-    try:
-        # Smoothing
-        smoothed = smooth_gaussian(cropped) # TODO: fix smoothing
-    except Exception as e:
-        raise RuntimeError(f"Smoothing failed: {str(e)}")
-    
-    return smoothed
-
 # Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
 def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
     """
@@ -519,3 +443,77 @@ def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05,
     # Stack slices back into a 3D array
     denoised_image = np.stack(denoised_slices, axis=2)
     return denoised_image
+
+# TODO: probably to be deprecated
+# because a conversion from a numpy array to a torch tensor is handled by the data_loader
+# if the data augmentation is performed (it is performed on training data),
+# then a numpy array is converted to a torch tensor during data augmentation step 
+# otherwise it is converted by __getitem__ of the MRIDataset class
+def to_tensor(data: np.ndarray) -> torch.Tensor:
+    """
+    Convert numpy array to PyTorch tensor
+    
+    Args:
+    data: np.ndarray: numpy array
+    
+    Returns:
+    torch.Tensor: PyTorch tensor
+    """
+    return torch.tensor(data, dtype=torch.float32)
+
+def preprocess_image(image: nib.Nifti1Image) -> np.ndarray: # TODO: change!
+    """
+    Preprocess the image using the following steps:
+    - Get the data
+    - Normalize the data
+    - Extract
+    - Crop
+    - Smooth
+
+    Args:
+    image: nib.Nifti1Image: nifti image object
+
+    Returns:
+    np.ndarray: preprocessed image data
+
+    Raises: TypeError: If the input image is not an instance of nib.Nifti1Image 
+    ValueError: For any processing step failures
+    """
+    if not isinstance(image, nib.Nifti1Image): # Ensure the image is a nibabel Nifti1Image
+        raise TypeError(f"Expected nib.Nifti1Image, got {type(image)}")
+    
+    #data = get_data(image) # TODO: to be deprecated
+    # # loading a .nii file instead 
+    # and resample_image returns a np.ndarray for further processing steps
+
+    try:
+        # Resampling
+        resampled = resample_image(image)
+    except Exception as e:    
+        raise RuntimeError(f"Resampling failed: {str(e)}")
+
+    try:    
+        # Normalization
+        normalized = normalize_data(resampled)
+    except Exception as e:
+        raise RuntimeError(f"Normalization failed: {str(e)}")
+    
+    try:
+        # Brain extraction
+        extracted = extract_brain(normalized)
+    except Exception as e:
+        raise RuntimeError(f"Brain extraction failed: {str(e)}")
+
+    try:
+        # Cropping
+        cropped = crop_to_largest_bounding_box(extracted) # TODO: fix cropping
+    except Exception as e:
+        raise RuntimeError(f"Cropping failed: {str(e)}")
+
+    try:
+        # Smoothing
+        smoothed = apply_gaussian_smoothing(cropped) # TODO: fix smoothing
+    except Exception as e:
+        raise RuntimeError(f"Smoothing failed: {str(e)}")
+    
+    return smoothed
