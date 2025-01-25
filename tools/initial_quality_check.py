@@ -8,14 +8,13 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.utils.preprocess import load_nii, get_data, resample_image, normalize_data
-from src.utils.preprocess_validation import calculate_snr, calculate_snr_background, calculate_snr_refined
-from src.utils.preprocess_validation import calculate_snr_with_mask, generate_brain_mask
-from src.utils.preprocess_validation import calculate_relative_psnr2
-from src.utils.preprocess_validation import calculate_cnr, calculate_rmse
+from src.utils.preprocess_validation import calculate_snr_with_mask, generate_signal_mask
+from src.utils.preprocess_validation import calculate_relative_psnr
+from src.utils.preprocess_validation import calculate_cnr, calculate_relative_rmse
 
 # Constants for thresholds
 SNR_THRESHOLD = 5
-PSNR_THRESHOLD = 10
+PSNR_THRESHOLD = 15
 
 def preprocess_scan(file_to_process):
     resampled_data = resample_image(file_to_process)
@@ -37,6 +36,10 @@ def main(path_to_data: str, limit_files: int = None):
     all_results = []
     exclusions = []
 
+    # Counter to check progress
+    progress_counter = 0
+
+    # Iterate over each dataset
     for dataset_name in ["COBRE", "MCICShare"]:
         dataset_full_name = f"schizconnect_{dataset_name}_images_22613"
         dataset_path = os.path.join(path_to_data, dataset_full_name, dataset_name)
@@ -55,13 +58,13 @@ def main(path_to_data: str, limit_files: int = None):
                 preprocessed_data = preprocess_scan(loaded_nii)
 
                 # Generate brain mask for CNR
-                mask = generate_brain_mask(preprocessed_data)
+                mask = generate_signal_mask(preprocessed_data)
 
                 # Calculate SNR, CNR, RMSE, and Relative PSNR
                 snr_value = calculate_snr_with_mask(preprocessed_data, mask)
                 cnr_value = calculate_cnr(preprocessed_data, mask)
-                rmse_value = calculate_rmse(preprocessed_data, np.max(preprocessed_data))  # Reference as max intensity
-                rel_psnr_value = calculate_relative_psnr2(preprocessed_data)
+                rmse_value = calculate_relative_rmse(preprocessed_data, np.max(preprocessed_data))  # Reference as max intensity
+                rel_psnr_value = calculate_relative_psnr(preprocessed_data)
 
                 # Append results
                 result = {'file_path': file_path, 
@@ -77,6 +80,8 @@ def main(path_to_data: str, limit_files: int = None):
                 if snr_value < SNR_THRESHOLD or rel_psnr_value < PSNR_THRESHOLD:
                     exclusions.append(result)
 
+                print(f'Proccessed a scan number {progress_counter} out of {1890}') # 985 905
+                progress_counter += 1
             except Exception as e:
                 print(f"Error processing file {file_path}: {e}", file=sys.stderr)
 
@@ -109,6 +114,8 @@ if __name__ == '__main__':
 
     # Save results
     save_results(all_results, exclusions, all_results_csv, exclusions_csv)
+
+    print(f'Number or all records: {len(all_results)}, excluded: {len(exclusions)}')
 
 
 '''def main(file_path):
