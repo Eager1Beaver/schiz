@@ -60,7 +60,7 @@ def complete_preprocess(file_path: str):
     results = []
 
     combination_count = 0
-    for mean, std, spatial, alpha, range in param_grid:
+    for mean, std in param_grid:
         try:
             print(f'Current combination: {combination_count + 1}/{len(param_grid)}')
             # Apply Gaussian noise
@@ -93,9 +93,9 @@ def complete_preprocess(file_path: str):
             })
             combination_count += 1
         except Exception as e:
-            print(f"Error with combination (mean={mean}, std={std}, spatial variation={spatial}, intensity dependent alpha={alpha}, dynamic range={range}): {str(e)}")
+            print(f"Error with combination (mean={mean}, std={std}: {str(e)}")
             continue
-
+            
     # Find the best combination
     best_result = max(results, key=lambda x: x['snr'])
     return best_result, results
