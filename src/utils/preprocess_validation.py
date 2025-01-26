@@ -87,8 +87,8 @@ def calculate_snr(data: np.ndarray, eps: float = 1e-6) -> float:
     if not isinstance(data, np.ndarray):
         raise TypeError(f"Input data must be a numpy array, got {type(data)}")
     
-    if data.ndim!= 3:
-        raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
+    #if data.ndim!= 3:
+    #    raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
     
     if data.size == 0: 
         raise ValueError("Input data should not be empty")
@@ -119,6 +119,12 @@ def generate_signal_mask(data: np.ndarray, otsu_scaling: float = 1.0, min_intens
     """
     Combine Otsu's thresholding with an intensity-based threshold for mask generation.
     """
+    # Filter non-zero values for Otsu's thresholding
+    non_zero_data = data[data > 0]
+    if non_zero_data.size == 0:
+        print("Warning: No non-zero data found for thresholding. Returning a zero mask.")
+        return np.zeros_like(data, dtype=np.uint8)
+    
     otsu_threshold = threshold_otsu(data[data > 0]) * otsu_scaling
     intensity_threshold = min_intensity_factor * np.max(data)
     combined_threshold = max(otsu_threshold, intensity_threshold)
@@ -141,6 +147,12 @@ def calculate_snr_with_mask(data: np.ndarray, mask = None, eps: float = 1e-6) ->
     if mask is None:
         mask = generate_signal_mask(data)
     #visualize_mask(data, mask, 130)
+
+    # Check if the mask has any valid signal region
+    if np.sum(mask) == 0:
+        print("Warning: The mask contains no signal region. Assigning SNR value of 0.")
+        return 0.0
+    
     signal = np.mean(data[mask > 0])
     noise = np.std(data[mask == 0])
     
@@ -167,8 +179,8 @@ def calculate_mse(data1: np.ndarray, data2: np.ndarray) -> float:
     if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
         raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
     
-    if data1.ndim!= 3 or data2.ndim!= 3:
-        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    #if data1.ndim!= 3 or data2.ndim!= 3:
+    #    raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
     
     if data1.size == 0 or data2.size == 0: 
         raise ValueError("Input data should not be empty")
@@ -195,8 +207,8 @@ def calculate_psnr(data1: np.ndarray,
     if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
         raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
     
-    if data1.ndim!= 3 or data2.ndim!= 3:
-        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    #if data1.ndim!= 3 or data2.ndim!= 3:
+    #    raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
     
     if data1.size == 0 or data2.size == 0: 
         raise ValueError("Input data should not be empty")
@@ -359,14 +371,18 @@ def calculate_cnr(data: np.ndarray, mask: np.ndarray = None) -> float:
 
     # Signal: Mean intensity of the brain region (inside the mask)
     signal = np.mean(data[mask > 0])
+    #print('cnr signal ', signal)
     
     # Background: Mean intensity of the non-brain region (outside the mask)
     background = np.mean(data[mask == 0])
+    #print('cnr background ', background)
     
     # Noise: Standard deviation of the non-brain region (background)
     noise = np.std(data[mask == 0])
-    
+    #print('cnr noise ', noise)
+
     if noise == 0:
+        #return 0
         raise ValueError("Noise (standard deviation of the background) is zero, CNR cannot be computed.")
     
     cnr = np.abs(signal - background) / noise
@@ -428,8 +444,8 @@ def calculate_ssim(data1: np.ndarray, data2: np.ndarray) -> float:
     if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
         raise TypeError(f"Input data must be numpy arrays, got {type(data1)} and {type(data2)}")
     
-    if data1.ndim!= 3 or data2.ndim!= 3:
-        raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
+    #if data1.ndim!= 3 or data2.ndim!= 3:
+    #    raise ValueError(f"Input data must be 3D numpy arrays, got {data1.ndim} and {data2.ndim}")
     
     if data1.size == 0 or data2.size == 0: 
         raise ValueError("Input data should not be empty")
@@ -454,8 +470,8 @@ def plot_histogram(data: np.ndarray,
     if not isinstance(data, np.ndarray):
         raise TypeError(f"Input data must be a numpy array, got {type(data)}")
     
-    if data.ndim!= 3:
-        raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
+    #if data.ndim!= 3:
+    #    raise ValueError(f"Input data must be a 3D numpy array, got {data.ndim}")
     
     if data.size == 0: 
         raise ValueError("Input data should not be empty")
