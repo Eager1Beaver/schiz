@@ -40,6 +40,8 @@ def get_paths_labels(data_path):
             # Retrieve the label (0 or 1) from the CSV
             if subject_id in participants_df.index:
                 label = participants_df.loc[subject_id, "dx_encoded"]
+                age = participants_df.loc[subject_id, "age"]
+                sex = participants_df.loc[subject_id, "sex"]
                 file_paths.append(file_path)
                 labels.append(label)
 
@@ -53,7 +55,7 @@ def get_paths_labels(data_path):
 
                 # Update file_info dictionary
                 dataset_key = dataset_name
-                file_info[dataset_key][subject_id].append((scan_type, file_path, label))
+                file_info[dataset_key][subject_id].append((scan_type, file_path, label, age, sex))
             else:
                 print(f"Warning: No label found for {subject_id} in {csv_path}")
 
@@ -132,13 +134,17 @@ def analyze_scans(file_info):
             t1_scans = sum(1 for scan in scans if scan[0] == "T1")
             t2_scans = sum(1 for scan in scans if scan[0] == "T2")
             label = scans[0][2] if scans else None  # Assuming all scans for a subject have the same label
+            age = scans[0][3] if scans else None
+            sex = scans[0][4] if scans else None
 
             scan_summary.append({
                 "Dataset": dataset,
                 "Subject ID": subject_id,
                 "T1 Scans": t1_scans,
                 "T2 Scans": t2_scans,
-                "Schizophrenic": label == 1
+                "Schizophrenic": label == 1,
+                "Age": age,
+                "Sex": sex
             })
 
     return pd.DataFrame(scan_summary)
