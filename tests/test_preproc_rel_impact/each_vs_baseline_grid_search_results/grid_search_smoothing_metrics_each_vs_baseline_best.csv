@@ -1,0 +1,2 @@
+preprocessing_step,snr,cnr,mse,psnr,ssim,relative_psnr,relative_rmse,sigma,truncate,mode,cval,order
+smoothing,24.066317,23.945597,9500.410423639622,19.507768929078257,0.4252162850525807,20.34501075744629,0.7790327,0.5,3.0,reflect,0.0,0
