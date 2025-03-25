@@ -1,0 +1,71 @@
+base:
+  raw_pt_data_dir: "data/raw_pt"
+  raw_nii_data_dir: "data/raw_nii"
+
+eda:
+  is_perform_eda: False
+  clinical_data_dir: "data/clinical_data.csv"
+  output_path: "data/eda"
+
+dataset_preparation:
+  is_perform_dataset_preparation: False
+  train_set_dir: "train_set"
+  test_set_dir: "test_set"
+  train_set_ratio: 0.81
+  is_normalize_when_preparing: True
+  normalization_method: "min-max"
+
+preprocessing_params:
+  is_perform_preprocessing: False
+  preprocessed_data_dir: "preprocessed"
+  is_normalize_when_preprocess: False
+  is_brain_exaction: True
+  is_crop: False
+  is_smooth: False
+  is_re_normalize_after_smooth: False
+  is_preprocess_test_set: False
+  voxel_size: [2, 2, 2]
+  min_val: 0
+  max_val: 1
+  modality: 't1'
+  verbose: True
+  sigma: 1.5
+  order: 2
+  mode: 'constant'
+  cval: 1.0
+  truncate: 2.0 
+  
+augmentation_params:
+  is_perform_augmentation: False
+  augmented_data_dir: "augmented"
+  how_many_augmentations: 3
+  is_translation: True
+  translation_shift: 5
+  is_rotation: True
+  rotation_angle: 10
+  is_gaussian_noise: False
+  gaussian_noise_mean: 0
+  gaussian_noise_std: 0.1
+
+resnet_params:
+  base_model_name: 'resnet18'
+  base_model_weights: models.ResNet18_Weights.IMAGENET1K_V1
+  input_channels: 1
+
+feature_extraction_params:
+  is_perform_feature_extraction: False
+  extracted_features_dir: "data/extracted_features"
+  target_shape: [224, 224]
+  batch_size: 64
+  
+svc_params:
+  is_perform_classification: False
+  save_clf_dir: "src/models/svm_classifier.pkl"
+  results_output_dir: "src/models/results/classification_results.json"
+  kernel: 'rbf'
+  C: 100
+  gamma: 0.0001
+
+plot_params:
+  is_perform_plotting: False
+  figs_output_dir: "src/paper/figs"  

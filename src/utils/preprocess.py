@@ -1,22 +1,13 @@
 import os
-import torch
-import pywt
 import ants
 import antspynet
 import numpy as np
-from typing import Union
 import nibabel as nib
-from nibabel.processing import resample_to_output 
-from scipy.ndimage import median_filter
+from typing import Union
+from logger import logger
 from scipy.ndimage import gaussian_filter
-from scipy.ndimage import binary_closing, binary_opening
 from skimage.filters import threshold_otsu
-
-"""
-# pywt --- For smoothing, wavelet denoising
-# antspynet --- For DL brain extraction
-# nibabel --- For loading nifti files
-# """
+from nibabel.processing import resample_to_output 
 
 def load_nii(file_path: str) -> nib.Nifti1Image:
     """
@@ -133,12 +124,13 @@ def match_dimensions(original_image: np.ndarray, modified_image: np.ndarray) -> 
     matched = np.pad(modified_image, pad_width=pad, mode='constant') if np.any(diff > 0) else modified_image[tuple(crop)]
     return matched[:original_image.shape[0], :original_image.shape[1], :original_image.shape[2]]  # Ensure final shape matches exactly
 
-def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
+def resample_image(data: nib.Nifti1Image,
                    voxel_size: tuple=(2, 2, 2),
                    order: int = 4,
                    mode: str='reflect',
                    cval: float=0.0,
-                   output_format: str='numpy') -> Union[nib.Nifti1Image, np.ndarray]:
+                   output_format: str='numpy'
+                   ) -> Union[nib.Nifti1Image, np.ndarray]:
     """
     Resample a nifti image to a given voxel size
     
@@ -155,8 +147,8 @@ def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
     ValueError: If voxel_size or output_format are invalid
     RuntimeError: If resampling fails
     """
-    #if not isinstance(data, nib.Nifti1Image) or not isinstance(data, np.ndarray): # Ensure the image is a nibabel Nifti1Image
-    #    raise TypeError(f"Expected nib.Nifti1Image, got {type(data)}")
+    if not isinstance(data, nib.Nifti1Image):
+        raise TypeError(f"Expected nib.Nifti1Image, got {type(data)}")
 
     if not isinstance(voxel_size, tuple) or len(voxel_size) != 3:
         raise ValueError(f"voxel_size must be a tuple of length 3, got {voxel_size}")
@@ -168,9 +160,6 @@ def resample_image(data, # Union[nib.Nifti1Image, np.ndarray]
         raise TypeError(f"output_format must be a string, got {type(output_format)}")
 
     try:
-        #if isinstance(data, np.ndarray):
-            # Convert numpy array to nibabel Nifti1Image
-        #    data = nib.Nifti1Image(data, get_affine(data))
         resampled = resample_to_output(data, voxel_sizes=voxel_size, order=order, mode=mode, cval=cval)
     except Exception as e:
         raise RuntimeError(f"Resampling failed: {str(e)}")
@@ -238,15 +227,11 @@ def normalize_data(data: np.ndarray,
     except Exception as e:
         raise RuntimeError(f"An error occurred while normalizing the data: {str(e)}")
 
-def refine_brain_mask(mask, structure=None): # TODO: integrate into pipeline
-    closed = binary_closing(mask, structure=structure)
-    opened = binary_opening(closed, structure=structure)
-    return opened
-
 def extract_brain(data: np.ndarray,
                   modality: str = 't1',
                   what_to_return: dict = {'extracted_brain': 'numpy'},
-                  verbose: bool = True) -> dict:
+                  verbose: bool = True
+                  ) -> dict:
     """
     Extract brain from a given image using deep learning brain extraction.
 
@@ -301,83 +286,39 @@ def extract_brain(data: np.ndarray,
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {str(e)}")  
 
-# Step 5: Cropping using the bounding box of the largest brain area by determining that particular slice
-
-# Determine the slice with the largest brain area
-def get_largest_brain_mask_slice(mask: np.ndarray) -> tuple[np.ndarray, int]:
-    """
-    Determine the slices with the largest brain mask dimension,
-    using Otsu's thresholding for binarization.
-    
-    Parameters:
-    - mask: numpy array, brain mask (3D)
-    
-    Returns:
-    - largest_slice_index: int, index of the slice with the largest brain mask
-    """
-    # Apply Otsu's thresholding to binarize the mask
-    threshold = threshold_otsu(mask)
-    binary_mask = (mask > threshold).astype(np.uint8)
-
-    largest_area = 0
-    largest_slice_index = -1
-
-    # Iterate through each slice along the z-axis
-    for z in range(binary_mask.shape[2]):  # Loop through slices
-        slice_mask = binary_mask[:, :, z]
-
-        # Skip completely empty slices
-        if np.any(slice_mask > 0):
-            # Find the bounding box of the slice mask
-            coords = np.argwhere(slice_mask > 0)
-            x_min, y_min = coords.min(axis=0)
-            x_max, y_max = coords.max(axis=0) + 1  # Inclusive
-
-            height = x_max - x_min
-            width = y_max - y_min
-            area = height * width
-
-            # Update the largest slice index based on area
-            if area > largest_area:
-                largest_area = area
-                largest_slice_index = z
-
-    return binary_mask, largest_slice_index
-
-# Crop all the slices using the dimension or bounding box of the largest brain area
-def crop_to_largest_bounding_box(data: np.ndarray, 
-                                 processed_mask: np.ndarray = None, 
-                                 largest_slice_idx: int = None,
-                                 mask: np.ndarray = None) -> np.ndarray:
+def crop_to_largest_bounding_box(data: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """
     Crop all slices to the bounding box of the largest brain area.
     
     Parameters:
     - data: numpy array, 3D MRI data
     - mask: numpy array, binary brain mask (3D)
-    - largest_slice_idx: int, index of the slice with the largest brain mask
     
     Returns:
     - cropped_data: numpy array, cropped 3D MRI data
     """
-    if processed_mask is None or largest_slice_idx is None:
-        processed_mask, largest_slice_idx = get_largest_brain_mask_slice(mask)
+    largest_slice_idx = np.argmax(np.sum(mask, axis=(0, 1)))  # Get slice with largest nonzero mask
 
-    # Extract the mask of the slice with the largest brain area
-    largest_slice_mask = processed_mask[:, :, largest_slice_idx]
+    largest_slice_mask = mask[:, :, largest_slice_idx]
 
-    # Find the bounding box of the largest slice
     coords = np.argwhere(largest_slice_mask > 0)
+    if coords.size == 0:  # If no brain region is found, return original data
+        logger.info("Warning: No bounding box found. Returning original data.")
+        return data  # Or return np.zeros_like(data) if you prefer an empty image
+
     x_min, y_min = coords.min(axis=0)
     x_max, y_max = coords.max(axis=0) + 1  # Inclusive
 
-    # Crop all slices using the bounding box dimensions
     cropped_slices = data[x_min:x_max, y_min:y_max, :]
-
     return cropped_slices
 
-# Step 6: Apply Gaussian Smoothing (to reduce noise and improve results) after cropping
-def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0, truncate=2.0):
+def apply_gaussian_smoothing(data, 
+                             sigma=1.5, 
+                             order=2, 
+                             mode='constant', 
+                             cval=1.0, 
+                             truncate=2.0
+                             ) -> np.ndarray:
     """
     Apply Gaussian smoothing to the data to reduce noise and artifacts.
     Args:
@@ -389,134 +330,3 @@ def apply_gaussian_smoothing(data, sigma=1.5, order=2, mode='constant', cval=1.0
     """
     smoothed_data = gaussian_filter(data, sigma=sigma, order=order, mode=mode, cval=cval, truncate=truncate)
     return smoothed_data
-
-# Method 2: Median filtering for smoothing
-def apply_median_filter(data, filter_size=3, mode='constant', cval=0.0):
-    """
-    Apply median filtering to a 3D MRI image.
-
-    Args:
-        data (numpy.ndarray): Input 3D MRI image.
-        filter_size (int): Size of the neighborhood for median filtering.
-
-    Returns:
-        numpy.ndarray: Median-filtered MRI image.
-    """
-    return median_filter(data, size=filter_size, mode=mode, cval=cval)
-
-# Method 3: Wavelet denoising for smoothing
-def apply_wavelet_denoising(data, wavelet='coif1', level=2, threshold=0.05, 
-                            thresholding='hard', mode='reflect'):
-    """
-    Apply wavelet denoising to a 3D MRI image with added thresholding mode and boundary mode.
-    
-    Args:
-        data (numpy.ndarray): Input 3D MRI image.
-        wavelet (str): Wavelet type (e.g., 'db1', 'sym4').
-        level (int): Level of wavelet decomposition.
-        threshold (float): Threshold value for soft or hard thresholding.
-        thresholding (str): Type of thresholding ('soft' or 'hard').
-        mode (str): Boundary handling mode (e.g., 'symmetric', 'constant').
-    
-    Returns:
-        numpy.ndarray: Denoised 3D MRI image.
-    """
-    denoised_slices = []
-    
-    for slice_idx in range(data.shape[2]):
-        slice_data = data[:, :, slice_idx]
-        
-        # Perform 2D wavelet decomposition
-        coeffs2 = pywt.wavedec2(slice_data, wavelet, mode=mode, level=level)
-        
-        # Apply soft or hard thresholding to detail coefficients
-        thresholded_coeffs = [
-            tuple(pywt.threshold(c, threshold, mode=thresholding) for c in detail) 
-            for detail in coeffs2[1:]
-        ]
-        
-        # Reconstruct the slice with thresholded coefficients
-        coeffs2[1:] = thresholded_coeffs
-        denoised_slice = pywt.waverec2(coeffs2, wavelet, mode=mode)
-        
-        # Ensure the reconstructed slice has the same shape as the input
-        denoised_slice = denoised_slice[:slice_data.shape[0], :slice_data.shape[1]]
-        denoised_slices.append(denoised_slice)
-    
-    # Stack slices back into a 3D array
-    denoised_image = np.stack(denoised_slices, axis=2)
-    return denoised_image
-
-# TODO: probably to be deprecated
-# because a conversion from a numpy array to a torch tensor is handled by the data_loader
-# if the data augmentation is performed (it is performed on training data),
-# then a numpy array is converted to a torch tensor during data augmentation step 
-# otherwise it is converted by __getitem__ of the MRIDataset class
-def to_tensor(data: np.ndarray) -> torch.Tensor:
-    """
-    Convert numpy array to PyTorch tensor
-    
-    Args:
-    data: np.ndarray: numpy array
-    
-    Returns:
-    torch.Tensor: PyTorch tensor
-    """
-    return torch.tensor(data, dtype=torch.float32)
-
-def preprocess_image(image: nib.Nifti1Image) -> np.ndarray: # TODO: change!
-    """
-    Preprocess the image using the following steps:
-    - Get the data
-    - Normalize the data
-    - Extract
-    - Crop
-    - Smooth
-
-    Args:
-    image: nib.Nifti1Image: nifti image object
-
-    Returns:
-    np.ndarray: preprocessed image data
-
-    Raises: TypeError: If the input image is not an instance of nib.Nifti1Image 
-    ValueError: For any processing step failures
-    """
-    if not isinstance(image, nib.Nifti1Image): # Ensure the image is a nibabel Nifti1Image
-        raise TypeError(f"Expected nib.Nifti1Image, got {type(image)}")
-    
-    #data = get_data(image) # TODO: to be deprecated
-    # # loading a .nii file instead 
-    # and resample_image returns a np.ndarray for further processing steps
-
-    try:
-        # Resampling
-        resampled = resample_image(image)
-    except Exception as e:    
-        raise RuntimeError(f"Resampling failed: {str(e)}")
-
-    try:    
-        # Normalization
-        normalized = normalize_data(resampled)
-    except Exception as e:
-        raise RuntimeError(f"Normalization failed: {str(e)}")
-    
-    try:
-        # Brain extraction
-        extracted = extract_brain(normalized)
-    except Exception as e:
-        raise RuntimeError(f"Brain extraction failed: {str(e)}")
-
-    try:
-        # Cropping
-        cropped = crop_to_largest_bounding_box(extracted) # TODO: fix cropping
-    except Exception as e:
-        raise RuntimeError(f"Cropping failed: {str(e)}")
-
-    try:
-        # Smoothing
-        smoothed = apply_gaussian_smoothing(cropped) # TODO: fix smoothing
-    except Exception as e:
-        raise RuntimeError(f"Smoothing failed: {str(e)}")
-    
-    return smoothed

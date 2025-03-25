@@ -1,4 +1,6 @@
-/data
+/data/baseline_data
+/data/COBRE
+/data/MCICShare
 /schiz
 /schiz.code-workspace
-/temp
+/junk
