@@ -4,7 +4,7 @@
 This project focuses on exploring the effect of various preprocessing and data augmentation methods on the accuracy of schizophrenia detection from Magnetic Resonance (MR) images. The aim of this exploration is to address the existing ambiguity in how MR images are preprocessed before training, as most authors in literature perform preprocessing in MATLAB without clear instructions for reproducibility.
 
 ### Project Data
-The raw data were obtained from the [SchizConnect](http://schizconnect.org/) database. The data obtained originates from the Center of Biomedical Research Excellence (COBRE) and Mind Clinical Imaging Consortium (MCICShare) datasets in NifTI format and represents structural MR images. In the framework of the present study, the data was sampled to give a balanced representation of age and gender distributions in the dataset, prioritizing age distribution, which has been shown to affect model performance. Overall, the project includes data from 242 individuals, 79 with schizophrenia and 105 healthy controls.
+The raw data were obtained from the [SchizConnect](http://schizconnect.org/) database. The data obtained originates from the Center of Biomedical Research Excellence (COBRE) and Mind Clinical Imaging Consortium (MCICShare) datasets in NifTI format and represents structural MR images. In the framework of the present study, the data was sampled to give a balanced representation of age and gender distributions in the dataset, prioritizing age distribution, which has been shown to affect model performance. Overall, the project includes data from 242 individuals, 111 with schizophrenia and 131 healthy controls.
 
 Example of the raw data:
 
