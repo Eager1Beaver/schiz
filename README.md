@@ -9,7 +9,7 @@ The raw data were obtained from the [SchizConnect](http://schizconnect.org/) dat
 Example of the raw data:
 
 <p align="center">
-  <img src="src/paper/figs/sample_volume.png" alt="Sample volume">
+  <img src="src/paper/figures/sample_volume.png" alt="Sample volume">
 </p>
 
 ### Project Workflow
