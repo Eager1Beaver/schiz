@@ -34,7 +34,7 @@ class SVMClassifier:
             None
         """
         self.pipeline = make_pipeline(
-            StandardScaler(),
+            StandardScaler(), PCA(n_components=500),
             SVC(kernel=kernel,
                 probability=True,
                 C=C,

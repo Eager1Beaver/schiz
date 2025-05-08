@@ -2,17 +2,9 @@ import os
 import re
 import numpy as np
 import pandas as pd
-import nibabel as nib
-from sklearn.svm import SVC
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.metrics import roc_curve, auc
 from skimage.transform import resize
-import joblib
 
 
 def extract_subject_number(file_name: str) -> str:
