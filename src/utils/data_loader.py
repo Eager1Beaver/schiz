@@ -1,131 +1,145 @@
+import os
 import re
-import torch
-import logging
+import numpy as np
 import pandas as pd
-import torch.nn.functional as F
-from torch.utils.data import Dataset
-from pathlib import Path
-from typing import Tuple, List, Optional
+import nibabel as nib
+from sklearn.svm import SVC
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+from sklearn.metrics import roc_curve, auc
+from skimage.transform import resize
+import joblib
 
 
-# Class to return each slice and the label
-class MRIDataset(Dataset):
+def extract_subject_number(file_name: str) -> str:
     """
-    A PyTorch Dataset for loading MRI slices and their corresponding labels.
+    Extracts the subject identifier from a given file name.
 
-    This dataset loads MRI scans from tensor files, extracts 2D slices, and resizes them.
-    Labels are matched using a provided CSV file that contains participant IDs.
+    Parameter:
+    file_name (str): The file name containing the subject identifier.
 
-    Attributes:
-        image_paths (List[Path]): List of file paths to MRI tensor files.
-        labels_df (pd.DataFrame): DataFrame containing participant IDs and corresponding labels.
-        target_shape (Tuple[int, int]): Desired shape (height, width) for each 2D slice.
+    Returns:
+    str: The extracted subject identifier (e.g., 'A123'), or None if no match is found.
     """
 
-    def __init__(
-        self,
-        image_paths: List[str],
-        labels_file: pd.DataFrame,
-        target_shape: Tuple[int, int] = (224, 224)
-    ) -> None:
-        """
-            Initializes the dataset.
+    match = re.search(r'sub-(A\d+)', file_name)
+    if match:
+        return match.group(1)
+    return None
 
-            Parameters:
-                image_paths (List[str]): List of file paths to MRI tensors.
-                labels_file (pd.DataFrame): DataFrame containing participant IDs and labels.
-                target_shape (Tuple[int, int]): Target height and width for 2D slices.
-                
-            Returns:
-                None
-            """
-        self.image_paths = [Path(p)
-                            for p in image_paths]  # Convert to Path objects
-        self.labels_df = labels_file
-        self.target_shape = target_shape
 
-    def __len__(self) -> int:
-        """
-            Returns the total number of slices across all MRI files.
+PLOT_DIR = 'plots'
+MODEL_DIR = 'models'
+os.makedirs(PLOT_DIR, exist_ok=True)
+os.makedirs(MODEL_DIR, exist_ok=True)
 
-            Returns:
-                int: Total number of 2D slices.
-            """
-        total_slices = 0
-        for path in self.image_paths:
-            mri_tensor = torch.load(path, weights_only=True)
-            total_slices += mri_tensor.shape[
-                0]  # Assume the first dimension is slices
-        return total_slices
+train_path = "train_path"
+test_path = "test_path"
+label_file = "participants.csv"
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
-        """
-            Retrieves a single resized 2D MRI slice and its corresponding label.
 
-            Parameters:
-                idx (int): Index of the slice to retrieve.
+def load_middle_slices(
+    npz_path: str, target_shape: tuple = (128, 128)) -> np.ndarray:
+    """
+    Loads a 3D MRI volume from a .npz file, extracts the middle 70% of slices, 
+    normalizes them, resizes each slice to the specified target shape, and 
+    returns them as a 3D numpy array.
 
-            Returns:
-                Tuple[torch.Tensor, int]: The processed 2D MRI slice and its label.
-            """
-        accumulated_slices = 0
-        file_path: Optional[Path] = None
-        slice_index: Optional[int] = None
+    Parameters:
+    npz_path (str): Path to the .npz file containing the 3D MRI volume.
+    target_shape (tuple): The target height and width for resizing each 2D slice. 
+                          Default is (128, 128).
 
-        # Find the MRI file corresponding to the requested index
-        for path in self.image_paths:
-            mri_tensor = torch.load(path, weights_only=True)
-            num_slices = mri_tensor.shape[
-                0]  # Number of slices in the current file
-            if idx < accumulated_slices + num_slices:
-                file_path = path
-                slice_index = idx - accumulated_slices
-                break
-            accumulated_slices += num_slices
+    Returns:
+    np.ndarray: A 3D numpy array of the processed 2D slices, with the shape 
+                (num_slices, target_shape[0], target_shape[1]).
+    """
+    data = np.load(npz_path)
+    array = data['arr_0']  # or whatever key the array is stored under
 
-        if file_path is None or slice_index is None:
-            raise IndexError(f"Index {idx} is out of range.")
+    # Ensure correct shape (slices, height, width)
+    if array.shape[0] < array.shape[1] and array.shape[0] < array.shape[2]:
+        data = np.transpose(array, (0, 1, 2))
+    elif array.shape[1] < array.shape[0] and array.shape[1] < array.shape[2]:
+        data = np.transpose(array, (1, 0, 2))
+    elif array.shape[2] < array.shape[0] and array.shape[2] < array.shape[1]:
+        data = np.transpose(array, (2, 0, 1))
+    else:
+        data = array  # no need to transpose if already (slices, height, width)
 
-        # Extract subject number and label
-        subject_number = self._extract_subject_number(file_path.name)
-        label_row = self.labels_df[self.labels_df["participant_id"] ==
-                                   subject_number]
+    num_slices = data.shape[0]
+    start = int(num_slices * 0.15)
+    end = int(num_slices * 0.85)
+    selected_slices = data[start:end]
 
+    # Normalize slices to [0,1]
+    normalized = [
+        np.interp(slice_, (slice_.min(), slice_.max()), (0, 1))
+        for slice_ in selected_slices
+    ]
+
+    # Resize slices to target_shape
+    resized = [
+        resize(slice_, target_shape, preserve_range=True, anti_aliasing=True)
+        for slice_ in normalized
+    ]
+
+    return np.stack(resized)
+
+
+def load_data(
+    directory: str, labels_df: pd.DataFrame,
+    target_shape: tuple = (128, 128)) -> tuple:
+    """
+    Loads MRI data from a directory, extracts middle slices from each MRI volume, 
+    and assigns the corresponding labels based on the provided labels dataframe.
+
+    Parameters:
+    directory (str): The path to the directory containing the .npz files with MRI volumes.
+    labels_df (pd.DataFrame): A dataframe containing the participant IDs and their corresponding 
+                              encoded labels (e.g., schizophrenia diagnosis).
+    target_shape (tuple): The target height and width for resizing each 2D slice. 
+                          Default is (128, 128).
+
+    Returns:
+    tuple: A tuple containing two numpy arrays:
+           - np.ndarray: A 3D numpy array of the processed MRI slices, 
+                         with the shape (num_slices, target_shape[0], target_shape[1]).
+           - np.ndarray: A 1D numpy array of the corresponding labels for each slice.
+    """
+
+    all_slices = []
+    all_labels = []
+
+    npz_files = [f for f in os.listdir(directory) if f.endswith(".npz")]
+
+    for file_name in tqdm(npz_files, desc=f"Loading from {directory}"):
+        path = os.path.join(directory, file_name)
+        subject_id = extract_subject_number(file_name)
+        if not subject_id:
+            continue
+        label_row = labels_df[labels_df["participant_id"] == subject_id]
         if label_row.empty:
-            logging.warning(f"No label found for subject: {subject_number}")
-            raise ValueError(f"Missing label for subject: {subject_number}")
+            continue
+        label = label_row["dx_encoded"].values[0]
 
-        label = int(label_row["dx_encoded"].values[0])
-
-        # Load the MRI tensor and extract the specific slice
         try:
-            mri_tensor = torch.load(file_path, weights_only=True)
-            slice_2d = mri_tensor[slice_index, :, :]  # Extract the 2D slice
-            slice_2d = slice_2d.unsqueeze(
-                0)  # Add channel dimension for PyTorch
-
-            # Resize the slice to the target shape
-            slice_2d = F.interpolate(slice_2d.unsqueeze(0),
-                                     size=self.target_shape,
-                                     mode="bilinear",
-                                     align_corners=False)
-            slice_2d = slice_2d.squeeze(0)  # Remove the batch dimension
+            # Instead of loading manually, use your own middle-slice function
+            slices = load_middle_slices(path, target_shape=target_shape)
+            all_slices.extend(slices)
+            all_labels.extend([label] * slices.shape[0])
         except Exception as e:
-            logging.error(f"Error processing file {file_path}: {e}")
-            raise RuntimeError(f"Error processing file {file_path}: {e}")
+            print(f"Error loading {path}: {e}")
 
-        return slice_2d, label
+    return np.array(all_slices), np.array(all_labels)
 
-    @staticmethod
-    def _extract_subject_number(file_name: str) -> Optional[str]:
-        """
-        Extracts the subject number from the MRI file name.
 
-        Parameters:
-            file_name (str): The name of the file (e.g., "sub-A123.nii.gz").
+X_train, y_train = load_data(train_path, labels_df)
+X_test, y_test = load_data(test_path, labels_df)
 
-        Returns:
-            Optional[str]: The extracted subject number if found, otherwise None.
-        """
-        match = re.search(r'sub-(A\d+)', file_name)
-        return match.group(1) if match else None
+X_train_flat = X_train.reshape(X_train.shape[0], -1)
+X_test_flat = X_test.reshape(X_test.shape[0], -1)
