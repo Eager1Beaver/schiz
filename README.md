@@ -1,5 +1,6 @@
 ## Schizophrenia Classification from Magnetic Resonance Images
 
+See report [here](src/paper/final_report.pdf)
 ### Overview
 This project focuses on exploring the effect of various preprocessing and data augmentation methods on the accuracy of schizophrenia detection from Magnetic Resonance (MR) images. The aim of this exploration is to address the existing ambiguity in how MR images are preprocessed before training, as most authors in literature perform preprocessing in MATLAB without clear instructions for reproducibility.
 
