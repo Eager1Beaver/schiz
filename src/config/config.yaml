@@ -1,4 +1,5 @@
 base:
+  pipeline_track: "cnn3d"
   raw_pt_data_dir: "data/raw_pt"
   raw_nii_data_dir: "data/raw_nii"
 
@@ -69,3 +70,13 @@ svc_params:
 plot_params:
   is_perform_plotting: False
   figs_output_dir: "src/paper/figs"  
+
+cnn3d_params:
+  resume_checkpoint: False
+  pretrained_weights: "src/models/cnn3d_model/pretrained_weights"
+  save_checkpoint_dir: "src/models/cnn3d_model/checkpoints"
+  load_checkpoint_dir: "src/models/cnn3d_model/checkpoints/best_model.pth"
+  results_output_dir: "src/models/results/"
+  batch_size: 32
+  num_epochs: 50
+  weight_decay: 0.0001

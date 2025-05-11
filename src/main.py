@@ -7,13 +7,23 @@ from utils.augment_images import augment_images
 from utils.feature_extractor import feature_extraction_pipeline
 from utils.classifier import train_and_evaluate
 from utils.plot_svm_metrics import SVMVisualizer
-
+from utils.data_loader_3d import get_dataloaders
+from utils.cnn3d import get_model, train, evaluate_and_plot
+from utils.grad_cam import GradCAMpp3D, EigenGradCAM3D, show_multi_slice_cam
+import torch
+import os
 
 def main():
     logger.info("The program started...")
 
     # Load configuration from a config file
     config_data = OmegaConf.load('src/config/config.yaml')
+
+    PIPELINE_TRACK = config_data.base.pipeline_track # 'cnn3d', 'svm' 
+    logger.info(f"Pipeline track: {PIPELINE_TRACK}")
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logger.info(f"Using device: {device}")
 
     # Accessing parameters
     RAW_PT_DATA_DIR = config_data.base.raw_pt_data_dir
@@ -61,25 +71,36 @@ def main():
     GAUSSIAN_NOISE_MEAN = config_data.augmentation_params.gaussian_noise_mean
     GAUSSIAN_NOISE_STD = config_data.augmentation_params.gaussian_noise_std
 
-    IS_PERFORM_FEATURE_EXTRACTION = config_data.feature_extraction_params.is_perform_feature_extraction
-    BASE_MODEL_NAME = config_data.resnet_params.base_model_name
-    BASE_MODEL_WEIGHTS = config_data.resnet_params.base_model_weights
-    INPUT_CHANNELS = config_data.resnet_params.input_channels
+    if PIPELINE_TRACK is 'cnn3d': 
+        RESUME_CHECKPOINT = config_data.cnn3d_params.resume_checkpoint 
+        PRETRAINED_WEIGHTS = config_data.cnn3d_params.pretrained_weights
+        SAVE_CHECKPOINT_DIR = config_data.cnn3d_params.save_checkpoint_dir
+        LOAD_CHECKPOINT_DIR = config_data.cnn3d_params.load_checkpoint_dir
+        RESULTS_OUTPUT_DIR = config_data.cnn3d_params.results_output_dir
+        BATCH_SIZE = config_data.cnn3d_params.batch_size
+        EPOCHS = config_data.cnn3d_params.epochs
+        WEIGHT_DECAY = config_data.cnn3d_params.weight_decay
 
-    LABELS_DIR = config_data.eda.clinical_data_dir
-    EXTRACTED_FEATURES_DIR = config_data.feature_extraction_params.extracted_features_dir
-    TARGET_SHAPE = tuple(config_data.feature_extraction_params.target_shape)
-    BATCH_SIZE = config_data.feature_extraction_params.batch_size
+    if PIPELINE_TRACK is 'svm':
+        IS_PERFORM_FEATURE_EXTRACTION = config_data.feature_extraction_params.is_perform_feature_extraction
+        BASE_MODEL_NAME = config_data.resnet_params.base_model_name
+        BASE_MODEL_WEIGHTS = config_data.resnet_params.base_model_weights
+        INPUT_CHANNELS = config_data.resnet_params.input_channels
 
-    IS_PERFORM_CLASSIFICATION = config_data.svc_params.is_perform_classification
-    SAVE_CLF_DIR = config_data.svc_params.save_clf_dir
-    RESULTS_OUTPUT_DIR = config_data.svc_params.results_output_dir
-    KERNEL = config_data.svc_params.kernel
-    C = config_data.svc_params.C
-    GAMMA = config_data.svc_params.gamma
+        LABELS_DIR = config_data.eda.clinical_data_dir
+        EXTRACTED_FEATURES_DIR = config_data.feature_extraction_params.extracted_features_dir
+        TARGET_SHAPE = tuple(config_data.feature_extraction_params.target_shape)
+        BATCH_SIZE = config_data.feature_extraction_params.batch_size
 
-    IS_PERFORM_PLOTTING = config_data.plot_params.is_perform_plotting
-    FIGS_OUTPUT_DIR = config_data.plot_params.figs_output_dir
+        IS_PERFORM_CLASSIFICATION = config_data.svc_params.is_perform_classification
+        SAVE_CLF_DIR = config_data.svc_params.save_clf_dir
+        RESULTS_OUTPUT_DIR = config_data.svc_params.results_output_dir
+        KERNEL = config_data.svc_params.kernel
+        C = config_data.svc_params.C
+        GAMMA = config_data.svc_params.gamma
+
+        IS_PERFORM_PLOTTING = config_data.plot_params.is_perform_plotting
+        FIGS_OUTPUT_DIR = config_data.plot_params.figs_output_dir
 
     # Step 0: Explanatory data analysis
     """
@@ -197,64 +218,145 @@ def main():
     else:
         logger.info("Augmentation was skipped.")
 
-    # Step 4: Feature extraction stage (ResNet)
-    """
-    Extracts features from both preprocessed and augmented images of the train set. 
-    These images are located in 
-    data/raw_nii/train_set/preprocessed and data/raw_nii/train_set/preprocessed/augmented
-    Saves the extracted features in data/raw_nii/train_set/extracted_features.
-    """
-    if IS_PERFORM_FEATURE_EXTRACTION:
-        feature_extraction_pipeline(
-            raw_nii_dir=RAW_NII_DATA_DIR,
-            train_set_dir=TRAIN_SET_DIR,
-            test_set_dir=TEST_SET_DIR,
-            preprocessed_set_dir=PREPROCESSED_DATA_DIR,
-            labels_dir=LABELS_DIR,
-            extracted_features_dir=EXTRACTED_FEATURES_DIR,
-            target_shape=TARGET_SHAPE,
-            batch_size=BATCH_SIZE,
-            feature_extraction_model=BASE_MODEL_NAME,
-            base_model_weights=BASE_MODEL_WEIGHTS,
-            input_channels=INPUT_CHANNELS)
-        logger.info("Feature extraction completed.")
-    else:
-        logger.info("Feature extraction was skipped.")
 
-    # Step 5: Model training and validation (SVC)
-    """
-    Trains a classifier using the extracted features located in 
-    data/raw_nii/train_set/extracted_features,
-    Validates the trained classifier using the images of the test set located in 
-    data/raw_nii/test_set/preprocessed,
-    Saves the trained model in src/models.
-    Saves the validation results in src/models/results.
-    """
-    if IS_PERFORM_CLASSIFICATION:
-        train_and_evaluate(extracted_features_dir=EXTRACTED_FEATURES_DIR,
-                           dir_to_save_clf=SAVE_CLF_DIR,
-                           results_output_dir=RESULTS_OUTPUT_DIR,
-                           clf_kernel=KERNEL,
-                           clf_c_value=C,
-                           clf_gamma=GAMMA)
-        logger.info("Classifier training and validation completed.")
-    else:
-        logger.info("Classifier training and validation was skipped.")
+    if PIPELINE_TRACK is 'cnn3d':
+        # Step 4: Load data
+        train_loader, test_loader = get_dataloaders(TRAIN_SET_DIR, TEST_SET_DIR, train_csv, test_csv, batch_size=4)
+        logger.info("Train and test sets loaded")
+        
+        # Step 5: Getting the model ready
+        model = get_model(num_classes=2, pretrained_path=(None if RESUME_CHECKPOINT else PRETRAINED_WEIGHTS))
+        logger.info("The model is ready")
 
-    # Step 6: Plot model (SVC) metrics
-    """
-    Plots model metrics (accuracy, precision, recall, f1-score) on the test set.
-    The results are loaded from src/models/results.
-    Plots are saved in paper/figs.
-    """
-    if IS_PERFORM_PLOTTING:
-        svm_visualizer = SVMVisualizer(results_json_path=RESULTS_OUTPUT_DIR,
-                                       save_figs_path=FIGS_OUTPUT_DIR)
-        svm_visualizer.plot_confusion_matrix()
-        svm_visualizer.plot_roc_curve()
-        logger.info("Classifier metrics have been plotted.")
-    else:
-        logger.info("Plotting was skipped.")
+        # Step 6: Train the model
+        train(
+            device,
+            model,
+            train_loader,
+            extra_epochs=EPOCHS,                 
+            resume_checkpoint=RESUME_CHECKPOINT,
+            load_ckpt_path=LOAD_CHECKPOINT_DIR,     # <- last writable checkpoint
+            save_ckpt_path=SAVE_CHECKPOINT_DIR      # save back to same writable path
+            )
+        logger.info('Model trained')
+
+        # Step 7: Evaluate the model
+        evaluate_and_plot(model, test_loader, plot_dir=RESULTS_OUTPUT_DIR)
+        print('Model evaluated')
+
+        # Step 8: Grad Cam
+        scans, labels = next(iter(test_loader))
+        scans = scans.to(device)
+
+        cam_extractor = GradCAMpp3D(model, model.layer4[1].conv2)
+        cam = cam_extractor.generate(scans[0])
+        logger.info('Grad-CAM generated')
+
+        show_multi_slice_cam(
+        scans[0].cpu(),
+        cam,
+        projection='sagittal',
+        save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_gradcam_sagittal.png')
+        )
+
+        show_multi_slice_cam(
+            scans[0].cpu(),
+            cam,
+            projection='coronal',
+            save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_gradcam_coronal.png')
+        )
+
+        show_multi_slice_cam(
+            scans[0].cpu(),
+            cam,
+            projection='axial',
+            save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_gradcam_axial.png')
+        )
+
+        # Generate EigenGradCAM
+        eig_cam_extractor = EigenGradCAM3D(model, model.layer4[1].conv2)
+        eig_cam = eig_cam_extractor.generate(scans[0])
+        
+        # Save visualization
+        show_multi_slice_cam(
+            scans[0].cpu(),
+            eig_cam,
+            projection='sagittal',
+            save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_eigengradcam_sagittal.png')
+        )
+        show_multi_slice_cam(
+            scans[0].cpu(),
+            eig_cam,
+            projection='coronal',
+            save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_eigengradcam_coronal.png')
+        )
+        show_multi_slice_cam(
+            scans[0].cpu(),
+            eig_cam,
+            projection='axial',
+            save_path=os.path.join(RESULTS_OUTPUT_DIR, 'multislice_eigengradcam_axial.png')
+        )
+
+
+    if PIPELINE_TRACK is 'svm':    
+        # Step 4: Feature extraction stage (ResNet)
+        """
+        Extracts features from both preprocessed and augmented images of the train set. 
+        These images are located in 
+        data/raw_nii/train_set/preprocessed and data/raw_nii/train_set/preprocessed/augmented
+        Saves the extracted features in data/raw_nii/train_set/extracted_features.
+        """
+        if IS_PERFORM_FEATURE_EXTRACTION:
+            feature_extraction_pipeline(
+                raw_nii_dir=RAW_NII_DATA_DIR,
+                train_set_dir=TRAIN_SET_DIR,
+                test_set_dir=TEST_SET_DIR,
+                preprocessed_set_dir=PREPROCESSED_DATA_DIR,
+                labels_dir=LABELS_DIR,
+                extracted_features_dir=EXTRACTED_FEATURES_DIR,
+                target_shape=TARGET_SHAPE,
+                batch_size=BATCH_SIZE,
+                feature_extraction_model=BASE_MODEL_NAME,
+                base_model_weights=BASE_MODEL_WEIGHTS,
+                input_channels=INPUT_CHANNELS)
+            logger.info("Feature extraction completed.")
+        else:
+            logger.info("Feature extraction was skipped.")
+
+        # Step 5: Model training and validation (SVC)
+        """
+        Trains a classifier using the extracted features located in 
+        data/raw_nii/train_set/extracted_features,
+        Validates the trained classifier using the images of the test set located in 
+        data/raw_nii/test_set/preprocessed,
+        Saves the trained model in src/models.
+        Saves the validation results in src/models/results.
+        """
+        if IS_PERFORM_CLASSIFICATION:
+            train_and_evaluate(extracted_features_dir=EXTRACTED_FEATURES_DIR,
+                            dir_to_save_clf=SAVE_CLF_DIR,
+                            results_output_dir=RESULTS_OUTPUT_DIR,
+                            clf_kernel=KERNEL,
+                            clf_c_value=C,
+                            clf_gamma=GAMMA)
+            logger.info("Classifier training and validation completed.")
+        else:
+            logger.info("Classifier training and validation was skipped.")
+
+        # Step 6: Plot model (SVC) metrics
+        """
+        Plots model metrics (accuracy, precision, recall, f1-score) on the test set.
+        The results are loaded from src/models/results.
+        Plots are saved in paper/figs.
+        """
+        if IS_PERFORM_PLOTTING:
+            svm_visualizer = SVMVisualizer(results_json_path=RESULTS_OUTPUT_DIR,
+                                        save_figs_path=FIGS_OUTPUT_DIR)
+            svm_visualizer.plot_confusion_matrix()
+            svm_visualizer.plot_roc_curve()
+            logger.info("Classifier metrics have been plotted.")
+        else:
+            logger.info("Plotting was skipped.")
 
     logger.info("The program completed successfully.")
 
