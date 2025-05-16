@@ -1,6 +1,7 @@
 /data/dataset_*
-/data/COBRE
+/data/COBRE*
 /data/MCICShare
 /schiz
 /schiz.code-workspace
 /junk
+/final_training_Amen

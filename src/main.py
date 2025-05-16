@@ -76,6 +76,7 @@ def main():
         PRETRAINED_WEIGHTS = config_data.cnn3d_params.pretrained_weights
         SAVE_CHECKPOINT_DIR = config_data.cnn3d_params.save_checkpoint_dir
         LOAD_CHECKPOINT_DIR = config_data.cnn3d_params.load_checkpoint_dir
+        VAL_SET_DIR = config_data.cnn3d_params.val_set_dir
         RESULTS_OUTPUT_DIR = config_data.cnn3d_params.results_output_dir
         BATCH_SIZE = config_data.cnn3d_params.batch_size
         EPOCHS = config_data.cnn3d_params.epochs
@@ -221,11 +222,16 @@ def main():
 
     if PIPELINE_TRACK is 'cnn3d':
         # Step 4: Load data
-        train_loader, test_loader = get_dataloaders(TRAIN_SET_DIR, TEST_SET_DIR, train_csv, test_csv, batch_size=4)
-        logger.info("Train and test sets loaded")
+        train_loader, val_loader, test_loader = get_dataloaders(TRAIN_SET_DIR, 
+                                                                VAL_SET_DIR, 
+                                                                TEST_SET_DIR, 
+                                                                CLINICAL_DATA_DIR,
+                                                                batch_size=4)
+        logger.info("Train, val and test sets loaded")
         
         # Step 5: Getting the model ready
-        model = get_model(num_classes=2, pretrained_path=(None if RESUME_CHECKPOINT else PRETRAINED_WEIGHTS))
+        model = get_model(num_classes=2, 
+                          pretrained_path=(None if RESUME_CHECKPOINT else PRETRAINED_WEIGHTS))
         logger.info("The model is ready")
 
         # Step 6: Train the model
@@ -233,6 +239,7 @@ def main():
             device,
             model,
             train_loader,
+            val_loader,
             extra_epochs=EPOCHS,                 
             resume_checkpoint=RESUME_CHECKPOINT,
             load_ckpt_path=LOAD_CHECKPOINT_DIR,     # <- last writable checkpoint

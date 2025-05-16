@@ -117,23 +117,24 @@ def load_pretrained_weights_safely(model, checkpoint_path):
     print(f"Loaded {len(pretrained_dict)} layers from pretrained model.")
     return model
 
-def get_model(device, num_classes=2, pretrained_path=None):
+def get_model(device, num_classes=2, pretrained_path=None,
+              unfreeze_layers=['layer2', 'layer3', 'layer4', 'fc']):
+    """
+    Builds patched ResNet-18, loads weights if path given,
+    then freezes everything except the layers in unfreeze_layers list.
+    """
     model = PatchedR3D18(num_classes=num_classes)
 
     if pretrained_path is not None:
         model = load_pretrained_weights_safely(model, pretrained_path)
 
     # Freeze initially
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # Unfreeze last layers
-    for param in model.layer3.parameters():
-        param.requires_grad = True
-    for param in model.layer4.parameters():
-        param.requires_grad = True
-    for param in model.fc.parameters():
-        param.requires_grad = True
+    for p in model.parameters(): p.requires_grad = False
+    
+    # Selectively un-freeze
+    for name, module in model.named_children():
+        if name in unfreeze_layers:
+            for p in module.parameters(): p.requires_grad = True
 
     return model.to(device)
 
@@ -150,11 +151,8 @@ def train(
         load_ckpt_path='models/checkpoint.pth',
         save_ckpt_path='models/checkpoint.pth'
         ):
-    # 1. Unfreeze layer2
-    for p in model.layer2.parameters():
-        p.requires_grad = True
 
-    # 2. Optimizer & Scheduler
+    # Optimizer & Scheduler
     optimizer = optim.AdamW(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=fine_tune_lr,
@@ -162,7 +160,7 @@ def train(
     )
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=3)
 
-    # 3. Loss: Combine CE, Focal, and Tversky
+    # Loss: Combine CE, Focal, and Tversky
     ce = nn.CrossEntropyLoss(label_smoothing=0.05)
     foc = FocalLoss(gamma=4.0)
     tv  = TverskyLoss(alpha=0.3, beta=0.7)
@@ -170,7 +168,7 @@ def train(
     def mixed_loss(out, y):
         return 0.3 * ce(out, y) + 0.4 * foc(out, y) + 0.3 * tv(out, y)
 
-    # 4. Resume checkpoint
+    # Resume checkpoint
     start_epoch = 0
     best_loss = float('inf')
     if resume_checkpoint and os.path.exists(load_ckpt_path):
@@ -185,32 +183,45 @@ def train(
 
     # 5. Training loop
     model.train()
-    train_losses, lrs = [], []
+    train_losses, val_losses, lrs = [], [], []
     final_epoch = start_epoch + extra_epochs
 
     for epoch in range(start_epoch, final_epoch):
-        running_loss = 0.0
+        running_test_loss = 0.0
         for scans, labels in train_loader:
             scans, labels = scans.to(device), labels.to(device)
             optimizer.zero_grad()
-            loss = mixed_loss(model(scans), labels)
-            loss.backward()
+            tloss = mixed_loss(model(scans), labels)
+            tloss.backward()
             optimizer.step()
-            running_loss += loss.item()
+            running_test_loss += tloss.item()
 
-        epoch_loss = running_loss / len(train_loader)
-        scheduler.step(epoch_loss)
+        epoch_loss_t = running_test_loss / len(train_loader)
 
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        running_val_loss = 0.0
+        for scans, labels in val_loader:
+            scans, labels = scans.to(device), labels.to(device)
+            optimizer.zero_grad()
+            vloss = mixed_loss(model(scans), labels)
+            vloss.backward()
+            optimizer.step()
+            running_val_loss += vloss.item()
 
-        print(f"Epoch [{epoch+1}/{final_epoch}]  Loss: {epoch_loss:.4f}")
-        train_losses.append(epoch_loss)
+        epoch_loss_v = running_val_loss / len(val_loader)
+
+        scheduler.step(epoch_loss_v)
+
+        if epoch_loss_v < best_loss:
+            best_loss = epoch_loss_v
+
+        print(f"Epoch [{epoch+1}/{final_epoch}]  Train loss: {tloss:.4f}    Val loss: {vloss:.4f}")
+        train_losses.append(epoch_loss_t)
+        val_losses.append(epoch_loss_v)
         lrs.append(optimizer.param_groups[0]['lr'])
 
         save_checkpoint(model, optimizer, scheduler, epoch, best_loss, path=save_ckpt_path)
 
-        early_stopper(epoch_loss)
+        early_stopper(epoch_loss_v)
         if early_stopper.early_stop:
             print("Early stopping triggered!")
             break
@@ -218,8 +229,14 @@ def train(
     # 6. Curves
     plt.figure(); 
     plt.plot(train_losses, 'o-'); 
-    plt.title('Loss'); 
-    plt.savefig(os.path.join(plot_dir,'loss_curve.png')); 
+    plt.title('Train loss'); 
+    plt.savefig(os.path.join(plot_dir,'tloss_curve.png')); 
+    plt.close()
+
+    plt.figure(); 
+    plt.plot(val_losses, 'o-'); 
+    plt.title('Val loss'); 
+    plt.savefig(os.path.join(plot_dir,'vloss_curve.png')); 
     plt.close()
 
     plt.figure(); 
