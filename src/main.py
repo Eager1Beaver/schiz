@@ -78,7 +78,9 @@ def main():
         LOAD_CHECKPOINT_DIR = config_data.cnn3d_params.load_checkpoint_dir
         VAL_SET_DIR = config_data.cnn3d_params.val_set_dir
         RESULTS_OUTPUT_DIR = config_data.cnn3d_params.results_output_dir
-        BATCH_SIZE = config_data.cnn3d_params.batch_size
+        BATCH_SIZE_TRAIN = config_data.cnn3d_params.batch_size_train
+        BATCH_SIZE_VAL = config_data.cnn3d_params.batch_size_val
+        BATCH_SIZE_TEST = config_data.cnn3d_params.batch_size_test
         EPOCHS = config_data.cnn3d_params.epochs
         WEIGHT_DECAY = config_data.cnn3d_params.weight_decay
 
@@ -226,7 +228,9 @@ def main():
                                                                 VAL_SET_DIR, 
                                                                 TEST_SET_DIR, 
                                                                 CLINICAL_DATA_DIR,
-                                                                batch_size=4)
+                                                                batch_train=BATCH_SIZE_TRAIN,
+                                                                batch_val=BATCH_SIZE_VAL,
+                                                                batch_test=BATCH_SIZE_TEST)
         logger.info("Train, val and test sets loaded")
         
         # Step 5: Getting the model ready
@@ -240,10 +244,11 @@ def main():
             model,
             train_loader,
             val_loader,
+            fine_tune_lr=WEIGHT_DECAY,
             extra_epochs=EPOCHS,                 
             resume_checkpoint=RESUME_CHECKPOINT,
-            load_ckpt_path=LOAD_CHECKPOINT_DIR,     # <- last writable checkpoint
-            save_ckpt_path=SAVE_CHECKPOINT_DIR      # save back to same writable path
+            load_ckpt_path=LOAD_CHECKPOINT_DIR,   
+            save_ckpt_path=SAVE_CHECKPOINT_DIR   
             )
         logger.info('Model trained')
 

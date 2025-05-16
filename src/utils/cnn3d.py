@@ -1,14 +1,10 @@
-import joblib, json
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, roc_auc_score, roc_curve
+from utils.cnn3d_tools import EarlyStopping, FocalLoss, TverskyLoss, save_checkpoint, load_checkpoint
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+import matplotlib.pyplot as plt
+import torch.optim as optim
 import torch.nn as nn
 import torch
-import torch.optim as optim
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, roc_auc_score, roc_curve
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from sklearn.metrics import f1_score
-from sklearn.linear_model import LogisticRegression
-
-from utils.cnn3d_tools import EarlyStopping, FocalLoss, TverskyLoss, save_checkpoint, load_checkpoint
 import os
 
 class BasicBlock3D(nn.Module):

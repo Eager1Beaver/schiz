@@ -14,7 +14,7 @@ class MRI_Dataset_OnTheFly(Dataset):
         # Mapping: participant_id -> label
         self.id_to_label = dict(zip(self.data_info['participant_id'], self.data_info['dx_encoded']))
 
-        # Store only filenames and labels (no full scans!)
+        # Store only filenames and labels
         self.samples = []
         for fname in os.listdir(scans_dir):
             if fname.endswith('.npz'):
@@ -31,7 +31,7 @@ class MRI_Dataset_OnTheFly(Dataset):
         fname, label = self.samples[idx]
         scan_path = os.path.join(self.scans_dir, fname)
 
-        scan = np.load(scan_path)['data']  # Assuming npz key is 'data'
+        scan = np.load(scan_path)['data']
         scan = (scan - scan.min()) / (scan.max() - scan.min() + 1e-5)  # Normalize
         scan = torch.tensor(scan, dtype=torch.float32).unsqueeze(0)  # (1, D, H, W)
 
@@ -40,10 +40,14 @@ class MRI_Dataset_OnTheFly(Dataset):
 
         return scan, torch.tensor(label, dtype=torch.long)
     
-def get_dataloaders(train_dir, test_dir, train_csv, test_csv, batch_size=4):
+def get_dataloaders(train_dir, val_dir, test_dir, 
+                    clinical_data, 
+                    batch_train=4, batch_val=2, batch_test=1,
+                    num_workers=2):
     # build datasets
-    train_dataset = MRI_Dataset_OnTheFly(train_dir, train_csv, augment=False)
-    test_dataset  = MRI_Dataset_OnTheFly(test_dir,  test_csv,  augment=False)
+    train_dataset = MRI_Dataset_OnTheFly(train_dir, clinical_data, augment=False)
+    val_dataset = MRI_Dataset_OnTheFly(val_dir, clinical_data, augment=False)    
+    test_dataset  = MRI_Dataset_OnTheFly(test_dir, clinical_data,  augment=False)
 
     # ---- Build sample-weights for the TRAIN set ----
     labels = [lbl for _, lbl in train_dataset.samples]          # list of 0/1
@@ -59,18 +63,26 @@ def get_dataloaders(train_dir, test_dir, train_csv, test_csv, batch_size=4):
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=batch_size,
-        sampler=sampler,          # <-- no shuffle when using sampler
-        num_workers=2,
+        batch_size=batch_train,
+        sampler=sampler,
+        num_workers=num_workers,
+        pin_memory=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_val,
+        shuffle=False,
+        num_workers=num_workers,
         pin_memory=True
     )
 
     test_loader = DataLoader(
         test_dataset,
-        batch_size=1,
+        batch_size=batch_test,
         shuffle=False,
-        num_workers=2,
+        num_workers=num_workers,
         pin_memory=True
     )
 
-    return train_loader, test_loader    
+    return train_loader, val_loader, test_loader    
